@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Moose — Admin</title>
   <style>
-    :root { --bg:#0a0a0a; --card:#141414; --line:#1f1f1f; --text:#fafafa; --dim:#71717a; --dimmer:#52525b; --amber:#f59e0b; --green:#22c55e; --red:#ef4444; }
+    :root { --bg:#0a0a0a; --card:#141414; --line:#1f1f1f; --text:#fafafa; --dim:#71717a; --dimmer:#52525b; --amber:#f59e0b; --green:#22c55e; --red:#ef4444; --blue:#60a5fa; }
     * { box-sizing:border-box; margin:0; padding:0; }
     body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; min-height:100vh; }
     .wrap { max-width:1100px; margin:0 auto; padding:32px 20px 60px; }
@@ -14,12 +14,12 @@
     .sub { color:var(--dimmer); font-size:12px; margin-top:4px; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-top:20px; }
     label { display:block; color:var(--dim); font-size:11px; font-weight:600; letter-spacing:0.8px; margin:14px 0 6px; }
-    input { width:100%; background:#0f0f0f; border:1px solid var(--line); border-radius:10px; padding:12px 14px; color:var(--text); font-size:15px; }
-    input:focus { outline:none; border-color:var(--amber); }
+    input, select, textarea { width:100%; background:#0f0f0f; border:1px solid var(--line); border-radius:10px; padding:12px 14px; color:var(--text); font-size:15px; font-family:inherit; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--amber); }
     button { margin-top:18px; width:100%; background:var(--amber); color:#0a0a0a; font-size:15px; font-weight:700; border:none; border-radius:12px; padding:14px; cursor:pointer; }
     button:hover { background:#d97706; }
     .error { color:var(--red); font-size:13px; margin-top:12px; }
-    .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:20px; }
+    .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-top:20px; }
     .tile { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; text-align:center; }
     .tile b { display:block; font-size:26px; font-weight:700; }
     .tile span { color:var(--dimmer); font-size:11px; letter-spacing:0.5px; }
@@ -27,10 +27,15 @@
     th { text-align:left; color:var(--dimmer); font-size:10px; letter-spacing:0.8px; padding:8px 10px; border-bottom:1px solid var(--line); }
     td { padding:10px; border-bottom:1px solid var(--line); vertical-align:top; }
     tr:last-child td { border-bottom:none; }
-    .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap; }
     .pill.owner { background:#f59e0b22; color:var(--amber); }
     .pill.admin { background:#22c55e22; color:var(--green); }
-    .pill.technician { background:#60a5fa22; color:#60a5fa; }
+    .pill.technician { background:#60a5fa22; color:var(--blue); }
+    .pill.lead { background:#71717a22; color:#a1a1aa; }
+    .pill.scheduled { background:#60a5fa22; color:var(--blue); }
+    .pill.in_progress { background:#f59e0b22; color:var(--amber); }
+    .pill.onboarded { background:#22c55e22; color:var(--green); }
+    .pill.stalled { background:#ef444422; color:var(--red); }
     .ok { color:var(--green); } .fail { color:var(--red); }
     .dim { color:var(--dim); } .dimmer { color:var(--dimmer); font-size:11px; }
     .right { text-align:right; }
@@ -40,7 +45,27 @@
     .fb-msg { color:var(--dim); font-size:12px; max-width:480px; }
     .scroll { overflow-x:auto; }
     h2 { font-size:14px; font-weight:600; margin-top:28px; }
-    @media (max-width:640px){ .hide-sm { display:none; } }
+    .h2row { display:flex; justify-content:space-between; align-items:center; margin-top:28px; }
+    .h2row h2 { margin-top:0; }
+    .clickable { cursor:pointer; }
+    .clickable:hover td { background:#181818; }
+    .rowbtns { display:flex; gap:6px; justify-content:flex-end; }
+    .btn-sm { width:auto; margin:0; padding:6px 10px; font-size:12px; font-weight:600; border-radius:8px; background:#181818; color:var(--dim); border:1px solid var(--line); }
+    .btn-sm:hover { background:#222; color:var(--text); }
+    .btn-sm.danger:hover { color:var(--red); border-color:#7f1d1d; }
+    .btn-add { width:auto; margin:0; padding:9px 16px; font-size:13px; border-radius:10px; }
+    .pf { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:6px; }
+    .pf .full { grid-column:1 / -1; }
+    .pf input, .pf select, .pf textarea { font-size:14px; padding:10px 12px; }
+    .pf textarea { min-height:64px; resize:vertical; }
+    .match { color:var(--green); font-size:10px; font-weight:600; margin-left:6px; }
+    .hbar { display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:16px; padding:12px 18px; border:1px solid var(--line); border-radius:12px; background:var(--card); font-size:12px; }
+    .hdot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:7px; vertical-align:middle; }
+    .hlabel { color:var(--dimmer); letter-spacing:0.5px; }
+    .drawer { margin-top:10px; }
+    .drawer .card { border-color:#2a2a2a; }
+    .closex { float:right; width:auto; margin:0; padding:2px 10px; background:transparent; border:1px solid var(--line); color:var(--dim); font-size:12px; border-radius:8px; }
+    @media (max-width:640px){ .hide-sm { display:none; } .pf { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -64,7 +89,51 @@
 
     <div id="dash" style="display:none">
       <div class="tiles" id="tiles"></div>
-      <h2>USERS</h2>
+
+      <!-- HubSpot pipeline health -->
+      <div class="hbar" id="hbar"></div>
+
+      <!-- Onboarding pipeline -->
+      <div class="h2row">
+        <h2>ONBOARDING PIPELINE</h2>
+        <button class="btn-add" id="pAdd">+ Add planned user</button>
+      </div>
+
+      <div class="card" id="pForm" style="display:none">
+        <input type="hidden" id="pId" />
+        <div class="pf">
+          <div><label>NAME</label><input id="pName" placeholder="Contact person" /></div>
+          <div><label>COMMUNITY / ORG</label><input id="pOrg" placeholder="e.g. Batchewana FN" /></div>
+          <div><label>EMAIL <span class="dimmer">(for auto-match)</span></label><input id="pEmail" type="email" placeholder="optional" /></div>
+          <div><label>PLANNED SYSTEM(S)</label><input id="pSystems" placeholder="e.g. 2 × 30 kWp Fronius" /></div>
+          <div><label>TARGET DATE</label><input id="pDate" type="date" /></div>
+          <div><label>STATUS</label>
+            <select id="pStatus">
+              <option value="lead">Lead</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="in_progress">In progress</option>
+              <option value="onboarded">Onboarded</option>
+              <option value="stalled">Stalled</option>
+            </select>
+          </div>
+          <div><label>OWNER</label><input id="pOwner" placeholder="Who owns this relationship" /></div>
+          <div class="full"><label>NOTES</label><textarea id="pNotes" placeholder="Context, blockers, next step…"></textarea></div>
+        </div>
+        <div class="rowbtns" style="margin-top:14px">
+          <button class="btn-sm" id="pCancel">Cancel</button>
+          <button class="btn-add" id="pSave">Save</button>
+        </div>
+        <div class="error" id="pErr"></div>
+      </div>
+
+      <div class="card scroll" style="padding:6px 10px">
+        <table id="pipeline"><thead><tr>
+          <th>WHO</th><th class="hide-sm">SYSTEM(S)</th><th>TARGET</th><th>STATUS</th>
+          <th class="hide-sm">OWNER</th><th class="right"></th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+
+      <h2>USERS <span class="dimmer">(click a row to see their feedback)</span></h2>
       <div class="card scroll" style="padding:6px 10px">
         <table id="users"><thead><tr>
           <th>USER</th><th>ROLE</th><th class="hide-sm">SYSTEMS</th>
@@ -72,6 +141,10 @@
           <th class="right">FEEDBACK</th><th class="hide-sm">LAST SEEN</th><th class="hide-sm">JOINED</th>
         </tr></thead><tbody></tbody></table>
       </div>
+
+      <!-- per-user feedback drawer -->
+      <div class="drawer" id="drawer" style="display:none"></div>
+
       <h2>FEEDBACK FEED <span class="dimmer">(everything, including failed HubSpot deliveries)</span></h2>
       <div class="card scroll" style="padding:6px 10px">
         <table id="fb"><thead><tr>
@@ -90,51 +163,133 @@
     const $ = (id) => document.getElementById(id);
     const fmt = (iso) => iso ? new Date(iso).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
     const fmtD = (iso) => iso ? new Date(iso).toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : '—';
+    const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }) : '—';
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const STATUS_LABEL = { lead:'Lead', scheduled:'Scheduled', in_progress:'In progress', onboarded:'Onboarded', stalled:'Stalled' };
+
+    let DATA = null;
+
+    async function callFn(name, payload) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+        method: 'POST',
+        headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload ?? {}),
+      });
+      return res.json();
+    }
 
     async function loadDash() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       $('subtitle').textContent = 'Loading…';
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-stats`, {
-        method: 'POST',
-        headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      const d = await res.json();
+      const d = await callFn('admin-stats', {});
       if (!d.ok) {
         $('err').textContent = d.error ?? 'Not authorized.';
         $('subtitle').textContent = 'Sign in with your @jazzsolar.com Moose account';
         await supabase.auth.signOut();
         return;
       }
+      DATA = d;
       $('login').style.display = 'none';
       $('dash').style.display = 'block';
       $('signout').style.display = 'block';
       $('subtitle').textContent = `Signed in as ${session.user.email} · data as of ${fmt(d.generated_at)}`;
 
       const activeToday = d.users.filter(u => u.last_sign_in_at && Date.now() - new Date(u.last_sign_in_at) < 864e5).length;
+      const openPipeline = (d.planned ?? []).filter(p => p.status !== 'onboarded').length;
       $('tiles').innerHTML = [
         [d.totals.users, 'USERS'],
         [d.totals.systems, 'SYSTEMS'],
         [activeToday, 'ACTIVE TODAY'],
+        [openPipeline, 'IN PIPELINE'],
         [d.totals.feedback, 'FEEDBACK ALL-TIME'],
       ].map(([v, l]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join('');
 
-      $('users').querySelector('tbody').innerHTML = d.users.map(u => `
+      renderHubSpot(d);
+      renderPipeline(d);
+      renderUsers(d);
+      renderFeedback(d.feedback);
+    }
+
+    function renderHubSpot(d) {
+      const h = d.hubspot ?? {};
+      const failed = h.failed_all_time ?? 0;
+      const delivered = (d.totals.feedback ?? 0) - failed;
+      // green: something delivered & nothing failed · amber: failures present · red: nothing ever delivered
+      let dot = 'var(--green)', word = 'Healthy';
+      if (d.totals.feedback === 0) { dot = 'var(--dimmer)'; word = 'No feedback yet'; }
+      else if (!h.last_delivered_at) { dot = 'var(--red)'; word = 'No deliveries'; }
+      else if (failed > 0) { dot = 'var(--amber)'; word = `${failed} not delivered`; }
+      $('hbar').innerHTML = `
+        <span><span class="hdot" style="background:${dot}"></span><b>HubSpot: ${word}</b></span>
+        <span><span class="hlabel">DELIVERED</span> ${delivered}</span>
+        <span><span class="hlabel">FAILED</span> <span class="${failed?'fail':'dim'}">${failed}</span></span>
+        <span><span class="hlabel">LAST TICKET</span> ${h.last_ticket ? esc(h.last_ticket) : '—'}</span>
+        <span><span class="hlabel">AT</span> ${fmt(h.last_delivered_at)}</span>`;
+    }
+
+    function renderPipeline(d) {
+      const rows = d.planned ?? [];
+      $('pipeline').querySelector('tbody').innerHTML = rows.length ? rows.map(p => `
         <tr>
+          <td><b>${esc(p.name)}</b>${p.signed_up ? '<span class="match">✓ SIGNED UP</span>' : ''}
+            <br><span class="dimmer">${esc(p.org) || ''}${p.email ? ' · ' + esc(p.email) : ''}</span></td>
+          <td class="hide-sm dim">${esc(p.planned_systems) || '—'}</td>
+          <td class="dim">${fmtDate(p.target_date)}</td>
+          <td><span class="pill ${esc(p.status)}">${STATUS_LABEL[p.status] || esc(p.status)}</span></td>
+          <td class="hide-sm dim">${esc(p.owner) || '—'}</td>
+          <td class="right"><div class="rowbtns">
+            <button class="btn-sm" data-edit="${p.id}">Edit</button>
+            <button class="btn-sm danger" data-del="${p.id}">Delete</button>
+          </div></td>
+        </tr>`).join('') : '<tr><td colspan="6" class="dim">No planned users yet — add your onboarding pipeline above.</td></tr>';
+
+      $('pipeline').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openForm(rows.find(r => r.id === b.dataset.edit)));
+      $('pipeline').querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteRow(b.dataset.del, rows.find(r => r.id === b.dataset.del)?.name));
+    }
+
+    function renderUsers(d) {
+      const tbody = $('users').querySelector('tbody');
+      tbody.innerHTML = d.users.map((u, i) => `
+        <tr class="${u.feedback_count ? 'clickable' : ''}" data-uidx="${i}">
           <td><b>${esc(u.name) || '—'}</b><br><span class="dimmer">${esc(u.email)}</span></td>
           <td><span class="pill ${esc(u.role)}">${esc(u.role)}</span></td>
           <td class="hide-sm dim">${u.systems.length ? esc(u.systems.join(', ')) : '—'}</td>
           <td class="right">${u.logins_7d}</td>
           <td class="right hide-sm">${u.logins_30d}</td>
-          <td class="right">${u.feedback_count}</td>
+          <td class="right">${u.feedback_count || '—'}</td>
           <td class="hide-sm dim">${fmt(u.last_sign_in_at)}</td>
           <td class="hide-sm dim">${fmtD(u.created_at)}</td>
         </tr>`).join('');
+      tbody.querySelectorAll('[data-uidx]').forEach(tr => {
+        const u = d.users[+tr.dataset.uidx];
+        if (u.feedback_count) tr.onclick = () => showUserFeedback(u);
+      });
+    }
 
-      $('fb').querySelector('tbody').innerHTML = d.feedback.length
-        ? d.feedback.map(f => `
+    function showUserFeedback(u) {
+      const mine = (DATA.feedback ?? []).filter(f => (f.user_id && f.user_id === u.id) || (f.email && f.email === u.email));
+      const drawer = $('drawer');
+      drawer.style.display = 'block';
+      drawer.innerHTML = `<div class="card">
+        <button class="closex" id="drawerClose">Close</button>
+        <h2 style="margin-top:0">Feedback from ${esc(u.name) || esc(u.email)} <span class="dimmer">(${mine.length})</span></h2>
+        <table><thead><tr><th>WHEN</th><th>TYPE</th><th>MESSAGE</th><th>HUBSPOT</th></tr></thead><tbody>
+        ${mine.map(f => `<tr>
+          <td class="dim">${fmt(f.at)}</td>
+          <td>${esc(f.category)}</td>
+          <td><b>${esc(f.subject) || '—'}</b><div class="fb-msg">${esc(f.message)}</div></td>
+          <td>${f.hubspot_ok ? `<span class="ok">✓ ${esc(f.ticket)}</span>` : '<span class="fail">✗ not delivered</span>'}</td>
+        </tr>`).join('')}
+        </tbody></table></div>`;
+      $('drawerClose').onclick = () => { drawer.style.display = 'none'; };
+      drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderFeedback(feedback) {
+      $('fb').querySelector('tbody').innerHTML = feedback.length
+        ? feedback.map(f => `
           <tr>
             <td class="dim">${fmt(f.at)}</td>
             <td class="dim">${esc(f.email)}</td>
@@ -143,6 +298,52 @@
             <td>${f.hubspot_ok ? `<span class="ok">✓ ${esc(f.ticket)}</span>` : '<span class="fail">✗ not delivered</span>'}</td>
           </tr>`).join('')
         : '<tr><td colspan="5" class="dim">No feedback yet.</td></tr>';
+    }
+
+    // ---- pipeline add/edit/delete ----
+    function openForm(row) {
+      $('pErr').textContent = '';
+      $('pId').value = row?.id ?? '';
+      $('pName').value = row?.name ?? '';
+      $('pOrg').value = row?.org ?? '';
+      $('pEmail').value = row?.email ?? '';
+      $('pSystems').value = row?.planned_systems ?? '';
+      $('pDate').value = row?.target_date ?? '';
+      $('pStatus').value = row?.status ?? 'lead';
+      $('pOwner').value = row?.owner ?? '';
+      $('pNotes').value = row?.notes ?? '';
+      $('pForm').style.display = 'block';
+      $('pForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      $('pName').focus();
+    }
+    $('pAdd').onclick = () => openForm(null);
+    $('pCancel').onclick = () => { $('pForm').style.display = 'none'; };
+    $('pSave').onclick = async () => {
+      $('pErr').textContent = '';
+      const row = {
+        id: $('pId').value || undefined,
+        name: $('pName').value.trim(),
+        org: $('pOrg').value.trim(),
+        email: $('pEmail').value.trim(),
+        planned_systems: $('pSystems').value.trim(),
+        target_date: $('pDate').value,
+        status: $('pStatus').value,
+        owner: $('pOwner').value.trim(),
+        notes: $('pNotes').value.trim(),
+      };
+      if (!row.name) { $('pErr').textContent = 'Name is required.'; return; }
+      $('pSave').disabled = true; $('pSave').textContent = 'Saving…';
+      const res = await callFn('admin-pipeline', { action: 'upsert', row });
+      $('pSave').disabled = false; $('pSave').textContent = 'Save';
+      if (!res.ok) { $('pErr').textContent = res.error ?? 'Save failed.'; return; }
+      $('pForm').style.display = 'none';
+      await loadDash();
+    };
+    async function deleteRow(id, name) {
+      if (!confirm(`Remove "${name ?? 'this planned user'}" from the pipeline?`)) return;
+      const res = await callFn('admin-pipeline', { action: 'delete', id });
+      if (!res.ok) { alert(res.error ?? 'Delete failed.'); return; }
+      await loadDash();
     }
 
     $('signin').onclick = async () => {
