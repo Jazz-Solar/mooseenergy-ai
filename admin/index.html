@@ -67,6 +67,7 @@
     .closex { float:right; width:auto; margin:0; padding:2px 10px; background:transparent; border:1px solid var(--line); color:var(--dim); font-size:12px; border-radius:8px; }
     @media (max-width:640px){ .hide-sm { display:none; } .pf { grid-template-columns:1fr; } }
   </style>
+  <link rel="stylesheet" href="./site-access.css" />
 </head>
 <body>
   <div class="wrap">
@@ -78,16 +79,19 @@
       <button class="signout" id="signout" style="display:none">Sign out</button>
     </div>
 
+    <div class="environment-bar"><label for="environment">Environment</label><select id="environment"><option value="development">Development</option><option value="production">Production</option></select><span id="environment-note"></span></div>
     <div class="card" id="login">
-      <label>EMAIL</label>
+      <label for="email">EMAIL</label>
       <input id="email" type="email" placeholder="you@jazzsolar.com" autocomplete="username" />
-      <label>PASSWORD</label>
+      <label for="password">PASSWORD</label>
       <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
       <button id="signin">Sign In</button>
-      <div class="error" id="err"></div>
+      <div class="error" role="alert" id="err"></div>
     </div>
 
     <div id="dash" style="display:none">
+      <div id="site-access"></div>
+      <h2>STAFF OVERVIEW</h2>
       <div class="tiles" id="tiles"></div>
 
       <!-- HubSpot pipeline health -->
@@ -105,7 +109,7 @@
           <div><label>NAME</label><input id="pName" placeholder="Contact person" /></div>
           <div><label>COMMUNITY / ORG</label><input id="pOrg" placeholder="e.g. Batchewana FN" /></div>
           <div><label>EMAIL <span class="dimmer">(for auto-match)</span></label><input id="pEmail" type="email" placeholder="optional" /></div>
-          <div><label>PLANNED SYSTEM(S)</label><input id="pSystems" placeholder="e.g. 2 × 30 kWp Fronius" /></div>
+          <div><label>PLANNED SYSTEM(S) · NO ACCESS GRANTED</label><input id="pSystems" placeholder="e.g. 2 × 30 kWp Fronius" /></div>
           <div><label>TARGET DATE</label><input id="pDate" type="date" /></div>
           <div><label>STATUS</label>
             <select id="pStatus">
@@ -155,10 +159,25 @@
   </div>
 
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-    const SUPABASE_URL = 'https://rcwynvzgzzywrormxlqp.supabase.co';
-    const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjd3ludnpnenp5d3Jvcm14bHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNjM0MDQsImV4cCI6MjA5NTczOTQwNH0.wYq7WoBKvX18TFiqyWv9qfDkP6mrGfcHaSUV6b2iMjs';
-    const supabase = createClient(SUPABASE_URL, ANON);
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.106.2';
+    import { selectEnvironment } from './environments.js';
+    import { mountSiteAccess } from './site-access.js';
+    import { createSessionBoundary } from './session-boundary.js';
+    const environment = selectEnvironment(location.search);
+    const SUPABASE_URL = environment.url;
+    const ANON = environment.key;
+    const supabase = createClient(SUPABASE_URL, ANON, { auth: {
+      storageKey: environment.storageKey, detectSessionInUrl: false,
+    }});
+    const boundary = createSessionBoundary();
+    let workspace = null;
+    document.getElementById('environment').value = environment.name;
+    document.getElementById('environment-note').textContent = environment.name === 'production'
+      ? 'Production · changes affect real customers' : 'Development · isolated from production';
+    document.getElementById('environment').onchange = (event) => {
+      clearStaffData();
+      location.assign(`?environment=${event.target.value}`);
+    };
 
     const $ = (id) => document.getElementById(id);
     const fmt = (iso) => iso ? new Date(iso).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
@@ -169,20 +188,42 @@
 
     let DATA = null;
 
+    function clearStaffData() {
+      boundary.reset();
+      DATA = null;
+      workspace?.destroy(); workspace = null;
+      $('site-access').replaceChildren();
+      for (const id of ['tiles','hbar','drawer']) $(id).replaceChildren();
+      for (const id of ['users','fb','pipeline']) $(id).querySelector('tbody').replaceChildren();
+      $('dash').style.display = 'none';
+      $('login').style.display = 'block';
+      $('signout').style.display = 'none';
+      $('password').value = '';
+      for (const id of ['pId','pName','pOrg','pEmail','pSystems','pDate','pOwner','pNotes']) $(id).value='';
+      $('pForm').style.display='none';
+    }
     async function callFn(name, payload) {
+      const ticket = boundary.capture();
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !boundary.current(ticket)) throw new Error('Sign in again to continue.');
       const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-        method: 'POST',
+        method: 'POST', cache: 'no-store',
         headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload ?? {}),
       });
-      return res.json();
+      const data = await res.json();
+      if (!boundary.current(ticket)) throw new Error('Your account changed. Sign in again.');
+      if (!res.ok || data.error) throw new Error(data.error?.message || (typeof data.error === 'string' ? data.error : 'Request failed.'));
+      return data;
     }
 
     async function loadDash() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      $('subtitle').textContent = 'Loading…';
+      $('subtitle').textContent = 'Checking staff access…';
+      const ticket = boundary.capture();
+      const readiness = await callFn('staff-site-access', {action:'list',input:{view:'reviews'}});
+      if (readiness.data?.schemaVersion !== 1 || readiness.data?.accessPolicy !== 'explicit_assignments') throw new Error('Site-access backend is not ready in this environment.');
       const d = await callFn('admin-stats', {});
       if (!d.ok) {
         $('err').textContent = d.error ?? 'Not authorized.';
@@ -190,7 +231,10 @@
         await supabase.auth.signOut();
         return;
       }
+      if (!boundary.current(ticket)) return;
       DATA = d;
+      workspace?.destroy();
+      workspace = mountSiteAccess($('site-access'), callFn, readiness.data);
       $('login').style.display = 'none';
       $('dash').style.display = 'block';
       $('signout').style.display = 'block';
@@ -203,7 +247,7 @@
         [d.totals.systems, 'SYSTEMS'],
         [activeToday, 'ACTIVE TODAY'],
         [openPipeline, 'IN PIPELINE'],
-        [d.totals.feedback, 'FEEDBACK ALL-TIME'],
+        [d.totals.feedback, 'RECENT FEEDBACK'],
       ].map(([v, l]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join('');
 
       renderHubSpot(d);
@@ -337,13 +381,13 @@
       $('pSave').disabled = false; $('pSave').textContent = 'Save';
       if (!res.ok) { $('pErr').textContent = res.error ?? 'Save failed.'; return; }
       $('pForm').style.display = 'none';
-      await loadDash();
+      await loadDash().catch(showError);
     };
     async function deleteRow(id, name) {
       if (!confirm(`Remove "${name ?? 'this planned user'}" from the pipeline?`)) return;
       const res = await callFn('admin-pipeline', { action: 'delete', id });
       if (!res.ok) { alert(res.error ?? 'Delete failed.'); return; }
-      await loadDash();
+      await loadDash().catch(showError);
     }
 
     $('signin').onclick = async () => {
@@ -353,12 +397,24 @@
         password: $('password').value,
       });
       if (error) { $('err').textContent = 'Sign-in failed: ' + error.message; return; }
-      await loadDash();
+      await loadDash().catch(showError);
     };
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('signin').click(); });
-    $('signout').onclick = async () => { await supabase.auth.signOut(); location.reload(); };
+    $('signout').onclick = async () => { clearStaffData(); await supabase.auth.signOut(); };
 
-    loadDash(); // restore an existing session on page load
+    function showError(error) {
+      clearStaffData();
+      $('err').textContent = error.message || 'Unable to load staff data.';
+      $('subtitle').textContent = `${environment.label} · sign in with your Moose staff account`;
+    }
+    let currentAccount = null;
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || currentAccount !== (session?.user.id ?? null)) {
+        clearStaffData();
+        currentAccount = session?.user.id ?? null;
+      }
+    });
+    loadDash().catch(showError);
   </script>
 </body>
 </html>

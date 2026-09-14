@@ -1,0 +1,56 @@
+.environment-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:24px 0; padding:14px; border:1px solid #a16207; border-radius:12px; background:#f59e00; color:#16120a; }
+.environment-bar label { color:inherit; margin:0; font-size:13px; }
+.environment-bar select { width:auto; }
+.environment-bar span { font-size:13px; }
+.access-heading { font-size:23px; margin:24px 0 8px; }
+.access-intro { color:#a1a1aa; line-height:1.6; max-width:760px; }
+.access-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:20px 0; }
+.access-tabs button { width:auto; margin:0; background:#1f1f1f; color:#d4d4d8; border:1px solid #52525b; }
+.access-tabs button[aria-pressed=true] { background:#f59e0b; color:#17120a; border-color:#f59e0b; }
+.access-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+.access-toolbar > div { flex:1; min-width:160px; }
+.access-toolbar button { width:auto; margin:0; }
+.access-card { border:1px solid #3f3f46; border-radius:16px; padding:20px; margin-top:16px; background:#141414; overflow-wrap:anywhere; }
+.access-card h3 { font-size:18px; margin-bottom:8px; }
+.access-card p { margin:6px 0; line-height:1.55; color:#d4d4d8; }
+.access-card small { color:#a1a1aa; }
+.access-card a { color:#fbbf24; }
+.access-card label { color:#d4d4d8; font-size:13px; letter-spacing:0; }
+.access-card details { margin-top:14px; }
+.access-card summary { cursor:pointer; min-height:44px; padding:12px 0; color:#fbbf24; }
+.access-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 16px; }
+.access-fields .full { grid-column:1/-1; }
+.access-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.access-actions button { width:auto; margin:0; }
+.access-actions .secondary { background:transparent; color:#fafafa; border:1px solid #71717a; }
+.access-actions .danger { background:#7f1d1d; color:white; }
+.access-status { display:inline-block; background:#27272a; color:#fbbf24; border-radius:30px; padding:4px 10px; font-size:13px; }
+.access-status.connected { background:#14532d; color:#dcfce7; }
+.access-status.revoked { background:#7f1d1d; color:#fee2e2; }
+.access-message { margin:16px 0; line-height:1.6; color:#fbbf24; }
+.access-empty { margin:20px 0; padding:28px; border:1px dashed #52525b; border-radius:12px; color:#a1a1aa; }
+button:disabled { cursor:wait; opacity:.55; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline:3px solid #fbbf24; outline-offset:4px; }
+.access-card pre { white-space:pre-wrap; font-size:12px; line-height:1.6; color:#d4d4d8; }
+.access-table-scroll { width:100%; overflow-x:auto; margin-top:12px; border:1px solid #343438; border-radius:12px; }
+.access-table { width:100%; min-width:680px; border-collapse:collapse; font-size:13px; text-align:left; }
+.access-table th { background:#18181b; color:#a1a1aa; padding:12px 16px; font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
+.access-table td { padding:14px 16px; border-top:1px solid #27272a; vertical-align:middle; color:#e4e4e7; max-width:270px; overflow-wrap:anywhere; }
+.access-table small { display:block; color:#92929b; font-size:11px; line-height:1.5; margin-top:4px; }
+.access-table tr:hover td { background:#ffffff03; }
+.access-table button { width:auto; margin:0; padding:10px 16px; min-height:44px; white-space:nowrap; }
+#access-detail { background:#101012; color:#fafafa; border:1px solid #52525b; border-radius:16px; padding:20px; width:min(740px,calc(100vw - 32px)); max-height:90dvh; overflow-y:auto; margin:auto; }
+#access-detail::backdrop { background:#000a; }
+#access-detail .access-card { padding:0; border:0; background:transparent; }
+.access-dialog-top { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.access-dialog-top button { width:auto; margin:0; background:#27272a; color:#fafafa; }
+#access-detail-message { color:#fbbf24; line-height:1.6; margin-top:12px; }
+.access-site-search { display:flex; flex-wrap:wrap; gap:8px; align-items:start; }
+.access-site-search input { margin:0; flex:1; min-width:0; }
+.access-site-search button { margin:0; width:auto; flex-shrink:0; padding:12px; }
+.access-site-search input { flex-basis:200px; }
+.access-more { width:auto; margin:10px 0 0; padding:10px 14px; }
+[data-directory-status] { font-size:12px; color:#a1a1aa; }
+@media(max-width:640px) { .access-fields { grid-template-columns:1fr; } .access-tabs button { flex:1 1 40%; font-size:13px; } .access-card { padding:16px; } .access-actions button { flex:1 1 45%; } }
+.access-table th:last-child, .access-table td:last-child { position:sticky; right:0; background:#141414; border-left:1px solid #27272a; width:90px; }
+.access-table th:last-child { background:#18181b; }
