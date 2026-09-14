@@ -213,7 +213,12 @@
       });
       const data = await res.json();
       if (!boundary.current(ticket)) throw new Error('Your account changed. Sign in again.');
-      if (!res.ok || data.error) throw new Error(data.error?.message || (typeof data.error === 'string' ? data.error : 'Request failed.'));
+      if (!res.ok || data.error) {
+        const error = new Error(data.error?.message || (typeof data.error === 'string' ? data.error : 'Request failed.'));
+        error.code = data.error?.code;
+        error.status = res.status;
+        throw error;
+      }
       return data;
     }
 
@@ -224,6 +229,7 @@
       const ticket = boundary.capture();
       const readiness = await callFn('staff-site-access', {action:'list',input:{view:'reviews'}});
       if (readiness.data?.schemaVersion !== 1 || readiness.data?.accessPolicy !== 'explicit_assignments') throw new Error('Site-access backend is not ready in this environment.');
+      if (readiness.data.reviewFormVersion !== 2) throw new Error('The updated site review is not available in this environment yet.');
       const d = await callFn('admin-stats', {});
       if (!d.ok) {
         $('err').textContent = d.error ?? 'Not authorized.';
