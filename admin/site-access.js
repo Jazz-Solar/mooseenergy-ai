@@ -334,13 +334,18 @@ export function mountSiteAccess(root, call, initial) {
   $('access-close').onclick=closeDetail;
   $('access-detail').oncancel=event=>{event.preventDefault();closeDetail();};
   $('access-search').onsubmit=event=>{event.preventDefault();if(!busy){offset=0;void load();}};
-  root.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{
-    if(busy)return; view=button.dataset.view;offset=0;
-    root.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+  function selectView(next) {
+    if(busy||!['reviews','mappings','assignments','history'].includes(next))return false;
+    if(view===next)return true;
+    closeDetail();view=next;offset=0;
+    $('access-query').value='';
+    root.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
     filters();void load();
-  });
+    return true;
+  }
+  root.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>selectView(button.dataset.view));
   $('access-prev').onclick=()=>{offset=Math.max(0,offset-50);void load();};
   $('access-next').onclick=()=>{offset+=50;void load();};
   filters();render(initial);
-  return {destroy(){alive=false;++generation;retryKeys.clear();root.removeEventListener('submit',submit);root.removeEventListener('click',click);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);$('access-detail').close();root.replaceChildren();}};
+  return {selectView,canLeave:()=>!busy,destroy(){alive=false;++generation;retryKeys.clear();root.removeEventListener('submit',submit);root.removeEventListener('click',click);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);$('access-detail').close();root.replaceChildren();}};
 }

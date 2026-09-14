@@ -67,16 +67,25 @@
     .closex { float:right; width:auto; margin:0; padding:2px 10px; background:transparent; border:1px solid var(--line); color:var(--dim); font-size:12px; border-radius:8px; }
     @media (max-width:640px){ .hide-sm { display:none; } .pf { grid-template-columns:1fr; } }
   </style>
-  <link rel="stylesheet" href="./site-access.css" />
+  <link rel="stylesheet" href="./site-access.css?v=20260914-fit-rates-1" />
+  <link rel="stylesheet" href="./admin.css?v=20260914-fit-rates-1" />
 </head>
-<body>
-  <div class="wrap">
+<body class="admin-app">
+  <aside class="admin-sidebar" id="admin-sidebar" hidden aria-label="Admin sidebar">
+    <button type="button" id="admin-nav-close">Close menu</button>
+    <div class="admin-brand"><span>Moose</span> Admin<small>Staff workspace</small></div>
+    <div class="admin-nav-label">Workspace</div>
+    <nav id="admin-nav" aria-label="Admin navigation"></nav>
+    <div class="admin-sidebar-footer"><small id="admin-environment"></small><button class="signout" id="signout" style="display:none">Sign out</button></div>
+  </aside>
+  <button type="button" class="admin-scrim" id="admin-scrim" hidden aria-label="Close navigation" tabindex="-1"></button>
+  <main class="wrap" id="admin-main">
     <div class="top">
       <div>
-        <h1>🫎 Moose Admin</h1>
+        <h1 id="admin-page-title" tabindex="-1">Moose Admin</h1>
         <div class="sub" id="subtitle">Sign in with your @jazzsolar.com Moose account</div>
       </div>
-      <button class="signout" id="signout" style="display:none">Sign out</button>
+      <button type="button" id="admin-menu" hidden aria-controls="admin-sidebar" aria-expanded="false">Menu</button>
     </div>
 
     <div class="environment-bar"><label for="environment">Environment</label><select id="environment"><option value="development">Development</option><option value="production">Production</option></select><span id="environment-note"></span></div>
@@ -90,13 +99,17 @@
     </div>
 
     <div id="dash" style="display:none">
-      <div id="site-access"></div>
-      <h2>STAFF OVERVIEW</h2>
+      <section id="site-access" data-admin-section="access" hidden></section>
+      <section id="site-rates" data-admin-section="rates" class="admin-page" hidden></section>
+      <section data-admin-section="overview" class="admin-page" hidden>
+      <h2>Staff overview</h2><p>Account activity and service health at a glance.</p>
       <div class="tiles" id="tiles"></div>
 
       <!-- HubSpot pipeline health -->
       <div class="hbar" id="hbar"></div>
 
+      </section>
+      <section data-admin-section="pipeline" class="admin-page" hidden>
       <!-- Onboarding pipeline -->
       <div class="h2row">
         <h2>ONBOARDING PIPELINE</h2>
@@ -137,7 +150,9 @@
         </tr></thead><tbody></tbody></table>
       </div>
 
-      <h2>USERS <span class="dimmer">(click a row to see their feedback)</span></h2>
+      </section>
+      <section data-admin-section="users" class="admin-page" hidden>
+      <h2>Users <span class="dimmer">(click a row to see their feedback)</span></h2>
       <div class="card scroll" style="padding:6px 10px">
         <table id="users"><thead><tr>
           <th>USER</th><th>ROLE</th><th class="hide-sm">SYSTEMS</th>
@@ -149,19 +164,24 @@
       <!-- per-user feedback drawer -->
       <div class="drawer" id="drawer" style="display:none"></div>
 
-      <h2>FEEDBACK FEED <span class="dimmer">(everything, including failed HubSpot deliveries)</span></h2>
+      </section>
+      <section data-admin-section="feedback" class="admin-page" hidden>
+      <h2>Feedback <span class="dimmer">(everything, including failed HubSpot deliveries)</span></h2>
       <div class="card scroll" style="padding:6px 10px">
         <table id="fb"><thead><tr>
           <th>WHEN</th><th>WHO</th><th>TYPE</th><th>MESSAGE</th><th>HUBSPOT</th>
         </tr></thead><tbody></tbody></table>
       </div>
+      </section>
     </div>
-  </div>
+  </main>
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.106.2';
     import { selectEnvironment } from './environments.js';
-    import { mountSiteAccess } from './site-access.js';
+    import { mountSiteAccess } from './site-access.js?v=20260914-fit-rates-1';
+    import { mountSiteRates } from './site-rates.js?v=20260914-fit-rates-1';
+    import { mountAdminShell } from './admin-shell.js?v=20260914-fit-rates-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search);
     const SUPABASE_URL = environment.url;
@@ -170,7 +190,20 @@
       storageKey: environment.storageKey, detectSessionInUrl: false,
     }});
     const boundary = createSessionBoundary();
-    let workspace = null;
+    let workspace = null, rates = null;
+    const pageNames = {overview:'Overview',rates:'Sites & FIT rates',reviews:'Requests',mappings:'Assignments',assignments:'Active access',history:'Access history',pipeline:'Onboarding',users:'Users',feedback:'Feedback'};
+    const shell = mountAdminShell(page => {
+      if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false) return false;
+      const access = ['reviews','mappings','assignments','history'].includes(page);
+      if (access) {
+        if (typeof workspace?.selectView === 'function') workspace.selectView(page);
+        else document.querySelector(`#site-access [data-view="${page}"]`)?.click();
+      }
+      document.querySelectorAll('[data-admin-section]').forEach(section => section.hidden = section.dataset.adminSection !== (access ? 'access' : page));
+      document.getElementById('admin-page-title').textContent = pageNames[page];
+      return true;
+    });
+    document.getElementById('admin-environment').textContent = environment.label;
     document.getElementById('environment').value = environment.name;
     document.getElementById('environment-note').textContent = environment.name === 'production'
       ? 'Production · changes affect real customers' : 'Development · isolated from production';
@@ -192,6 +225,8 @@
       boundary.reset();
       DATA = null;
       workspace?.destroy(); workspace = null;
+      rates?.destroy(); rates = null; shell.reset();
+      $('site-rates').replaceChildren();
       $('site-access').replaceChildren();
       for (const id of ['tiles','hbar','drawer']) $(id).replaceChildren();
       for (const id of ['users','fb','pipeline']) $(id).querySelector('tbody').replaceChildren();
@@ -241,9 +276,11 @@
       DATA = d;
       workspace?.destroy();
       workspace = mountSiteAccess($('site-access'), callFn, readiness.data);
+      rates?.destroy(); rates = mountSiteRates($('site-rates'), callFn);
       $('login').style.display = 'none';
       $('dash').style.display = 'block';
       $('signout').style.display = 'block';
+      shell.enable();
       $('subtitle').textContent = `Signed in as ${session.user.email} · data as of ${fmt(d.generated_at)}`;
 
       const activeToday = d.users.filter(u => u.last_sign_in_at && Date.now() - new Date(u.last_sign_in_at) < 864e5).length;

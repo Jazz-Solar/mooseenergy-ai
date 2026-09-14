@@ -1,0 +1,77 @@
+.admin-app [hidden] { display:none !important; }
+.admin-app .wrap { width:100%; max-width:none; margin:0; padding:28px 36px 60px; min-width:0; }
+.admin-app.admin-signed-in .wrap { margin-left:232px; width:calc(100% - 232px); }
+.admin-app #login { max-width:440px; margin:50px auto; padding:28px; }
+.admin-app .top { align-items:center; gap:16px; min-width:0; }
+.admin-app .sub { overflow-wrap:anywhere; color:#a1a1aa; line-height:1.6; }
+.admin-app .environment-bar { margin:20px 0 28px; background:#f59e0b10; color:#fbbf24; border-color:#f59e0b40; }
+.admin-app .environment-bar select { font-size:13px; padding:8px 12px; }
+.admin-app #site-access .access-tabs { display:none; }
+.admin-app #site-access .access-heading { margin-top:0; }
+.admin-sidebar { position:fixed; inset:0 auto 0 0; width:232px; padding:28px 16px 20px; background:#101012; border-right:1px solid #27272a; display:flex; flex-direction:column; z-index:30; overflow-y:auto; }
+.admin-brand { padding:0 14px 26px; font-size:21px; font-weight:750; letter-spacing:-.6px; }
+.admin-brand span { color:#fbbf24; }
+.admin-brand small { display:block; color:#92929b; font-size:11px; font-weight:500; letter-spacing:1px; margin-top:8px; text-transform:uppercase; }
+.admin-nav-label { color:#92929b; font-size:10px; letter-spacing:1px; margin:0 14px 12px; text-transform:uppercase; }
+.admin-sidebar nav { display:grid; gap:5px; }
+.admin-sidebar nav button { display:flex; align-items:center; gap:12px; margin:0; padding:12px 14px; min-height:46px; text-align:left; background:transparent; color:#a1a1aa; font-size:13px; font-weight:550; border:1px solid transparent; border-radius:9px; }
+.admin-sidebar nav button svg { width:19px; height:19px; flex-shrink:0; }
+.admin-sidebar nav button:hover { background:#ffffff06; color:#fafafa; }
+.admin-sidebar nav button[aria-current=page] { color:#fbbf24; border-color:#f59e0b25; background:#f59e0b10; }
+.admin-sidebar-footer { margin-top:auto; padding:26px 12px 0; }
+.admin-sidebar-footer small { display:block; color:#92929b; font-size:11px; margin-bottom:14px; }
+.admin-sidebar-footer .signout { width:100%; min-height:44px; }
+.admin-app #admin-menu, .admin-app #admin-nav-close { width:auto; margin:0; min-height:44px; background:#1c1c1f; color:#fafafa; border:1px solid #3f3f46; font-size:13px; }
+.admin-app #admin-menu, .admin-app #admin-nav-close { display:none; }
+.admin-scrim { position:fixed; inset:0; width:100%; height:100%; margin:0; padding:0; border-radius:0; background:#0009; z-index:29; }
+.admin-scrim:hover { background:#0009; }
+.admin-page h2 { margin-top:0; font-size:23px; }
+.admin-page > p { margin-top:8px; color:#a1a1aa; line-height:1.6; }
+.admin-page .h2row { margin-top:0; }
+.admin-app #admin-page-title:focus { outline:none; }
+.rates-toolbar { display:flex; gap:12px; align-items:end; margin:20px 0; flex-wrap:wrap; }
+.rates-toolbar > div:first-child { flex:1; min-width:180px; }
+.rates-toolbar button { width:auto; margin:0; min-height:44px; }
+.rates-table { min-width:700px; }
+.rates-table small { display:block; margin-top:5px; color:#92929b; line-height:1.5; }
+.rate-state { display:inline-block; padding:4px 9px; border-radius:6px; background:#f59e0b12; color:#fbbf24; font-size:12px; white-space:nowrap; }
+.rate-state.ready { background:#14532d55; color:#86efac; }
+.rate-state.unsupported { background:#27272a; color:#a1a1aa; }
+.rates-pager { display:flex; align-items:center; gap:14px; justify-content:flex-end; margin-top:18px; color:#a1a1aa; font-size:13px; flex-wrap:wrap; }
+.rates-pager button { width:auto; margin:0; background:#1c1c1f; color:#fafafa; border:1px solid #3f3f46; min-height:44px; }
+.rate-dialog { margin:auto; width:min(560px,calc(100vw - 24px)); max-height:90dvh; overflow-y:auto; background:#101012; color:#fafafa; border:1px solid #52525b; border-radius:16px; padding:24px; }
+.rate-dialog::backdrop { background:#000a; }
+.rate-dialog h3 { font-size:19px; }
+.rate-dialog .rate-site-id { color:#92929b; font-size:12px; margin:10px 0 20px; overflow-wrap:anywhere; }
+.rate-dialog label { font-size:13px; letter-spacing:0; color:#d4d4d8; }
+.rate-dialog .rate-help { font-size:13px; color:#a1a1aa; line-height:1.6; margin:10px 0; }
+.rate-dialog .rate-confirm { display:flex; align-items:flex-start; gap:10px; padding:14px; border:1px solid #3f3f46; border-radius:10px; font-weight:400; line-height:1.5; }
+.rate-confirm input { width:18px; height:18px; padding:0; margin-top:2px; flex-shrink:0; accent-color:#f59e0b; }
+.rate-dialog .rate-actions { display:flex; gap:10px; margin-top:24px; }
+.rate-dialog .rate-actions button { margin:0; min-height:46px; }
+.rate-dialog .rate-actions button:first-child { width:auto; background:#27272a; color:#fafafa; }
+.rate-dialog [role=alert] { padding:12px; border-radius:10px; color:#fca5a5; background:#7f1d1d33; font-size:13px; line-height:1.6; margin-top:16px; }
+.rate-dialog [aria-invalid=true] { border-color:#fca5a5; }
+.rate-dialog details { margin-top:20px; border-top:1px solid #27272a; padding-top:12px; }
+.rate-dialog summary { color:#a1a1aa; cursor:pointer; min-height:44px; padding:12px 0; font-size:13px; }
+.rate-history-entry { padding:12px 0; border-bottom:1px solid #27272a; font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+.rate-history-entry small { display:block; color:#a1a1aa; }
+.admin-app input:focus-visible, .admin-app select:focus-visible, .admin-app textarea:focus-visible { outline:2px solid #fbbf24; outline-offset:2px; }
+@media(min-width:1700px) { .admin-app .wrap { padding-left:48px; padding-right:48px; } }
+@media(max-width:900px) {
+  .admin-app.admin-signed-in .wrap { margin-left:0; width:100%; }
+  .admin-app .wrap { padding:20px 20px 40px; }
+  .admin-sidebar { width:260px; transform:translateX(-100%); }
+  .admin-nav-open .admin-sidebar { transform:translateX(0); box-shadow:12px 0 60px #0006; }
+  .admin-nav-open { overflow:hidden; }
+  .admin-app.admin-signed-in #admin-menu, .admin-app #admin-nav-close { display:block; }
+  .admin-app #admin-nav-close { align-self:flex-end; margin-bottom:18px; }
+  .admin-brand { padding-bottom:24px; }
+}
+@media(max-width:480px) {
+  .admin-app .wrap { padding:18px 16px 36px; }
+  .rates-toolbar > div { width:100%; }
+  .rates-toolbar button { width:100%; }
+  .rate-dialog { padding:18px; }
+  .admin-app .environment-bar { gap:8px; padding:12px; }
+}
