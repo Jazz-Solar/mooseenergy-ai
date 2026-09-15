@@ -1,3 +1,5 @@
+import { rankSiteHints, siteLabel } from './site-hints.js?v=20260915-review-hints-1';
+
 export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const e = escapeHtml;
 const date = value => value ? new Date(value).toLocaleString() : 'Not recorded';
@@ -21,11 +23,11 @@ const permissionLink = (verification, system) => {
   return url ? `<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Open this site’s Solar.web permissions</a>` : 'Exact Solar.web permissions link not recorded';
 };
 const verificationSources = [['contract','Customer contract'],['install_record','Installation record'],['authorized_email','Authorized email'],['field_verification','Field verification']];
-function verificationFields(previous={},permission='guest') {
+function verificationFields(previous={}) {
   return `<div class="access-fields">
-    <div><label>Verified against<select name="source" aria-label="Verified against">${options([['','Choose a record'],...verificationSources],previous.source||'install_record')}</select></label></div>
-    ${field('reference','Record reference','text',previous.reference||'','maxlength="1000" placeholder="Contract, job, or email reference (10+ characters)"')}
-    <div class="full"><label>Customer’s Solar.web permission<select name="permission" aria-label="Customer’s Solar.web permission">${options([['','Select the permission you observed'],['owner','Owner'],['supervisor','Supervisor'],['guest','Guest']],previous.permission||permission)}</select></label></div>
+    <div><label>Verified against<select name="source" aria-label="Verified against">${options([['','Choose a record'],...verificationSources],previous.source||'authorized_email')}</select></label></div>
+    ${field('reference','Record reference','text',previous.reference||crypto.randomUUID(),'maxlength="1000" placeholder="Record or email reference"')}
+    <div class="full"><label>Customer’s Solar.web permission<select name="permission" aria-label="Customer’s Solar.web permission">${options([['','Select the permission you observed'],['owner','Owner'],['supervisor','Supervisor'],['guest','Guest']],previous.permission||'guest')}</select></label></div>
     </div>
     <label class="access-check"><input name="providerChecked" type="checkbox"><span>I checked the supporting record and this site’s Solar.web permissions. The customer has the selected permission and JAZZ can view the site.</span></label>
     <input name="permissionsUrl" type="hidden">`;
@@ -41,6 +43,8 @@ const action = (value,label,css='') => `<button type="submit" name="action" valu
 export function mountSiteAccess(root, call, initial) {
   let view='reviews', offset=0, alive=true, generation=0, rows=[], busy=false, sites=[], hasMore=false;
   const directories = new WeakMap();
+  const suggestions = new WeakMap();
+  let hintCatalog = null;
   const retryKeys = new Map();
   root.innerHTML = `<h2 class="access-heading">Site access</h2><p class="access-intro">Review what the customer submitted, then verify or deny their request.</p>
     <nav class="access-tabs" aria-label="Site access workspaces">${[['reviews','Requests'],['mappings','Assignments'],['assignments','Active access'],['history','History']].map(([v,l])=>`<button data-view="${v}" aria-pressed="${v===view}">${l}</button>`).join('')}</nav>
@@ -52,14 +56,14 @@ export function mountSiteAccess(root, call, initial) {
   const message = value => { if(alive) { $('access-message').textContent=value; $('access-detail-message').textContent=value; } };
 
   const support = r => r.technician_preference==='custom' ? r.connection_setup?.technicianName || 'Customer’s technician' : r.technician_preference==='jazz' ? 'Moose Tech · JAZZ Solar' : r.preferred_technician_name || 'Not specified';
-  const directoryControls = kind => `<div class="access-site-search"><input name="${kind}Search" type="search" maxlength="200" aria-label="Search ${kind==='user'?'users':'known sites'}" placeholder="${kind==='user'?'Find a user by name or email':'Find a site by name or ID'}"><button type="button" data-find="${kind}">Find ${kind==='user'?'users':'sites'}</button><button type="button" data-all="${kind}" class="secondary">Show all</button></div><button type="button" data-more="${kind}" class="access-more" hidden>Load more ${kind==='user'?'users':'sites'}</button><p data-directory-status="${kind}" role="status"></p>`;
+  const directoryControls = kind => `<div class="access-site-search"><input name="${kind}Search" type="search" maxlength="200" aria-label="Search ${kind==='user'?'users':'known sites'}" placeholder="${kind==='user'?'Find a user by name or email':'Find a site by address, name or ID'}"><button type="button" data-find="${kind}">Find ${kind==='user'?'users':'sites'}</button><button type="button" data-all="${kind}" class="secondary">Show all</button></div><button type="button" data-more="${kind}" class="access-more" hidden>Load more ${kind==='user'?'users':'sites'}</button><p data-directory-status="${kind}" role="status"></p>`;
   const userPicker = () => `<div class="full"><label>Registered user<select name="knownUser" aria-label="Registered user"><option value="">Select a customer or enter their email below</option></select></label><details class="access-directory"><summary>Search users</summary>${directoryControls('user')}</details><p class="access-hint" data-user-status>Choose a registered customer, or enter an email for someone who hasn’t joined.</p></div>${field('email','Customer email','email','','required maxlength="320"')}<input name="userId" type="hidden">`;
   const sitePicker = (selected='',candidates=[]) => `<div class="full"><label>Known site<select name="knownSite" aria-label="Known site">${siteOptions(selected,candidates)}</select></label><p><a data-site-link ${solarWebPermissionsUrl(selected)?`href="${e(solarWebPermissionsUrl(selected))}"`:'hidden'} target="_blank" rel="noopener noreferrer">Check permissions in Solar.web ↗</a></p><details class="access-directory"><summary>Find another site or enter its ID</summary>${directoryControls('site')}${field('systemId','Exact Solar.web system ID','text',selected,'placeholder="f:00000000-0000-0000-0000-000000000000"')}</details></div>`;
   function siteOptions(selected,candidates=[],catalog=sites) {
-    const entries=new Map(catalog.map(s=>[s.system_id,{id:s.system_id,name:s.display_name}]));
-    candidates.forEach(c=>entries.set(c.systemId,{id:c.systemId,name:`${c.displayName} · ${c.matchReason} suggestion`}));
-    if(selected&&!entries.has(selected))entries.set(selected,{id:selected,name:selected});
-    return options([['','Select a known site'],...[...entries.values()].map(s=>[s.id,s.name===s.id?s.id:`${s.name} · ${s.id.slice(-8)}`])],selected);
+    const entries=new Map(candidates.map(c=>{const id=c.system_id||c.systemId;return [id,{system_id:id,display_name:c.display_name||c.displayName,display_address:c.display_address||c.displayAddress}];}));
+    catalog.forEach(site=>entries.set(site.system_id,{...entries.get(site.system_id),...site}));
+    if(selected&&!entries.has(selected))entries.set(selected,{system_id:selected});
+    return options([['','Select a known site'],...[...entries.values()].map(site=>[site.system_id,siteLabel(site)])],selected);
   }
   async function loadDirectory(kind,search='',form,append=false) {
     if(!form?.isConnected||!alive)return;
@@ -78,8 +82,9 @@ export function mountSiteAccess(root, call, initial) {
       if(kind==='site') {
         const select=form.elements.knownSite, selected=form.elements.systemId.value;
         const selectedOption=[...select.options].find(o=>o.value===selected);
-        select.innerHTML=siteOptions(selected,[],state.rows);
-        if(selectedOption&&!state.rows.some(s=>s.system_id===selected))select.selectedOptions[0].textContent=selectedOption.textContent;
+        const hints=search?[]:suggestions.get(form)||[];
+        select.innerHTML=siteOptions(selected,hints,state.rows);
+        if(selectedOption&&!state.rows.some(s=>s.system_id===selected)&&!hints.some(s=>s.system_id===selected))select.selectedOptions[0].textContent=selectedOption.textContent;
         if(!search)sites=state.rows;
       } else {
         states.userRecords??=new Map();state.rows.forEach(u=>states.userRecords.set(u.id,u));
@@ -96,6 +101,36 @@ export function mountSiteAccess(root, call, initial) {
       if(states[kind]===state){state.loading=false;more.disabled=busy;}
     }
   }
+  async function loadHints(record,form) {
+    const panel=form.closest('article').querySelector('[data-site-hints]');
+    const renderHints=(catalog,loading=false)=>{
+      if(!alive||!form.isConnected)return;
+      const hints=rankSiteHints(record,catalog);suggestions.set(form,hints);
+      panel.innerHTML=`<h4>Possible sites</h4><p class="access-hint">Based on the submitted address or site name. Check the customer’s permission in Solar.web.</p>
+        ${hints.length?`<ul>${hints.map(site=>`<li><div><strong>${e(site.display_name||site.system_id)}</strong><span>${e(site.display_address||'Address not recorded')}</span><small>${e(site.reason)}</small></div><div class="access-hint-actions"><a href="${e(solarWebPermissionsUrl(site.system_id))}" target="_blank" rel="noopener noreferrer" aria-label="Check permissions for ${e(site.display_name||site.system_id)}">Solar.web permissions ↗</a><button type="button" data-use-site="${e(site.system_id)}" ${busy?'disabled':''}>Use this site</button></div></li>`).join('')}</ul>`:loading?'':'<p>No close matches found. Choose a site below or search by address, name or ID.</p>'}
+        ${loading?'<p role="status">Looking for matching sites…</p>':''}`;
+      const current=directories.get(form)?.site;
+      if(!current?.search)form.elements.knownSite.innerHTML=siteOptions(form.elements.systemId.value,hints,current?.rows||sites);
+    };
+    renderHints(sites,true);
+    try {
+      if(!hintCatalog)hintCatalog=(async()=>{
+        const catalog=[];
+        for(let page=0;page<100&&alive;page++){
+          const response=await call('staff-site-access',{action:'sites',input:{search:'',offset:catalog.length}});
+          catalog.push(...response.data.rows);
+          if(!response.data.hasMore)return catalog;
+          if(!response.data.rows.length)break;
+        }
+        throw new Error('Site list incomplete');
+      })().catch(error=>{hintCatalog=null;throw error;});
+      renderHints(await hintCatalog);
+    } catch {
+      if(!alive||!form.isConnected)return;
+      renderHints(sites);
+      panel.insertAdjacentHTML('beforeend','<p role="status">The full site list could not be loaded. <button type="button" data-retry-hints>Retry suggestions</button> or use the site search below.</p>');
+    }
+  }
   function closeDetail() { if(!busy){$('access-detail').close();$('access-detail-content').replaceChildren();} }
   function openDetail(index) {
     const r=rows[index];
@@ -105,7 +140,7 @@ export function mountSiteAccess(root, call, initial) {
     const form=$('access-detail-content').querySelector('form');
     if(form?.elements.permissionsUrl&&!form.elements.permissionsUrl.value)form.elements.permissionsUrl.value=solarWebPermissionsUrl(form.elements.systemId?.value||r.system_id)||'';
     $('access-detail').showModal();
-    if(form?.elements.knownSite)void loadDirectory('site','',form);
+    if(form?.elements.knownSite){void loadDirectory('site','',form);if(view==='reviews')void loadHints(r,form);}
   }
   function historyDetail(r) { return `<article class="access-card"><h3>${e(r.action)}</h3><p>${e(r.reason)}</p><p>By ${e(r.reviewer_name)} · ${e(date(r.created_at))}</p><pre>${e(JSON.stringify({before:r.before_record,after:r.after_record},null,2))}</pre></article>`; }
 
@@ -129,7 +164,7 @@ export function mountSiteAccess(root, call, initial) {
     return `<form data-row="${index}" data-decision-form novalidate>
       <fieldset data-panel="verify" hidden disabled><legend>${mapping?'Verify assignment':'Verify site access'}</legend>
         ${mapping?`<input name="systemId" type="hidden" value="${e(selected)}"><p>${permissionLink(record.verification,selected)}</p>`:`<div class="access-fields">${sitePicker(selected,candidates)}</div>`}
-        ${verificationFields(mapping?record.verification:{},record.connection_setup?.hosting==='customer'?'owner':'guest')}
+        ${verificationFields(mapping?record.verification:{})}
         <p class="access-hint">${mapping?'After verification, the customer can accept this assignment in Moose.':'Verifying grants this customer access to the selected site.'}</p>
       </fieldset>
       <fieldset data-panel="deny" hidden disabled><legend>${mapping?'Deny assignment':'Deny request'}</legend><p>This request will be closed without granting site access.</p></fieldset>
@@ -155,6 +190,7 @@ export function mountSiteAccess(root, call, initial) {
         ${fact('Technician',support(r))}${setup.technicianContact?fact('Technician contact',setup.technicianContact):''}
         ${r.fronius_system_id?fact('Requested system ID',r.fronius_system_id):''}
       </dl></details>
+      ${!connected&&!closed?'<section class="access-site-hints" data-site-hints aria-label="Possible sites"></section>':''}
       <details class="access-record-details"><summary>Request details & history</summary><p>Submitted ${e(date(r.created_at))}</p><p><small>Account: ${e(r.user_id)}<br>Request: ${e(r.id)}</small></p>
         <p>Last site search: ${e(date(r.detected_at))}. ${(r.candidates||[]).length} suggested site(s).</p>
         ${r.relationship?`<p>${permissionLink(r.relationship.verification,r.matched_system_id)}</p>`:''}
@@ -286,10 +322,22 @@ export function mountSiteAccess(root, call, initial) {
       const text=invalid?(verifying?'The site or verification details were not accepted. Check the exact site and supporting record.':'The assignment details were not accepted. Check the customer and selected site.'):error.message;
       message(`${text} Your entries are retained.`);
     }
-    finally {busy=false;if(alive){controls.forEach(([control,disabled])=>control.disabled=disabled);$('access-prev').disabled=offset===0;$('access-next').disabled=!hasMore;}}
+    finally {busy=false;if(alive){controls.forEach(([control,disabled])=>control.disabled=disabled);root.querySelectorAll('[data-use-site],[data-retry-hints]').forEach(button=>button.disabled=false);$('access-prev').disabled=offset===0;$('access-next').disabled=!hasMore;}}
   }
   root.addEventListener('submit',submit);
   const click = event => {
+    const suggestion=event.target.closest('[data-use-site]');
+    if(suggestion&&!busy){
+      const form=suggestion.closest('article').querySelector('form');
+      const site=(suggestions.get(form)||[]).find(site=>site.system_id===suggestion.dataset.useSite);
+      if(site){
+        chooseDecision(form,'verify');
+        if(![...form.elements.knownSite.options].some(option=>option.value===site.system_id))form.elements.knownSite.add(new Option(siteLabel(site),site.system_id));
+        form.elements.knownSite.value=site.system_id;
+        form.elements.knownSite.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    }
+    if(event.target.closest('[data-retry-hints]')&&!busy){const form=event.target.closest('article').querySelector('form');void loadHints(rows[Number(form.dataset.row)],form);}
     const decision=event.target.closest('button[data-decision]');
     if(decision&&!busy)chooseDecision(decision.form,decision.dataset.decision);
     const opener=event.target.closest('[data-open]');
@@ -321,7 +369,7 @@ export function mountSiteAccess(root, call, initial) {
     if(link){link.hidden=!url;if(url)link.href=url;else link.removeAttribute('href');}
     if(form.elements.permissionsUrl) {
       form.elements.permissionsUrl.value=solarWebPermissionsUrl(event.target.value)||'';
-      form.elements.permission.value='';form.elements.providerChecked.checked=false;
+      form.elements.permission.value='guest';form.elements.providerChecked.checked=false;
     }
     if(form.elements.displayName)form.elements.displayName.value=directories.get(form)?.site?.rows.find(s=>s.system_id===event.target.value)?.display_name||sites.find(s=>s.system_id===event.target.value)?.display_name||'';
   };

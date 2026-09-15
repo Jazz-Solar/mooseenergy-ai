@@ -76,6 +76,15 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline:3px solid
 .access-decision-actions button { flex:1; min-height:46px; }
 .access-card [data-form-error] { margin-top:14px; padding:12px; background:#7f1d1d33; color:#fca5a5; border-radius:10px; font-size:14px; line-height:1.5; }
 .access-card [aria-invalid=true] { border-color:#fca5a5; }
+.access-site-hints { margin:18px 0; padding:16px; border:1px solid #3f3f46; border-radius:12px; background:#18181b; }
+.access-site-hints h4 { margin:0 0 6px; font-size:15px; }
+.access-site-hints ul { list-style:none; margin:12px 0 0; padding:0; }
+.access-site-hints li { padding:12px 0; border-top:1px solid #343438; }
+.access-site-hints li span, .access-site-hints li small { display:block; margin-top:4px; line-height:1.5; }
+.access-site-hints li span { font-size:13px; color:#d4d4d8; }
+.access-hint-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px; }
+.access-hint-actions a { font-size:13px; }
+.access-hint-actions button, [data-retry-hints] { width:auto; margin:0; padding:10px 14px; min-height:44px; }
 @media(max-width:480px) {
   .access-facts { gap:14px 16px; }
   #access-detail { padding:16px; width:calc(100vw - 20px); }
