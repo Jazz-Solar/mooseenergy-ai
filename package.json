@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "preview:production": "node scripts/preview-production.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node ../Mooose/tests/portal/staff-journey.mjs"
   },

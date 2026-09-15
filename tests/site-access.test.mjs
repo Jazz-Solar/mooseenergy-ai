@@ -16,6 +16,18 @@ test('development defaults and isolated sessions use pinned public keys', async 
     if(config.key.startsWith('ey'))assert.equal(JSON.parse(Buffer.from(config.key.split('.')[1],'base64url')).role,'anon');
   }
 });
+test('the published domain defaults to production while local previews and explicit links keep their environment', () => {
+  for (const host of ['mooseenergy.ai', 'www.mooseenergy.ai']) {
+    assert.equal(selectEnvironment('', host).name, 'production');
+    assert.equal(selectEnvironment('?environment=development', host).name, 'development');
+    assert.equal(selectEnvironment('', host).storageKey, selectEnvironment('?environment=production').storageKey);
+    assert.throws(() => selectEnvironment('?environment=invalid', host));
+  }
+  for (const host of ['localhost', '127.0.0.1', 'mooseenergy.ai.example.invalid']) {
+    assert.equal(selectEnvironment('', host).name, 'development');
+    assert.equal(selectEnvironment('?environment=production', host).name, 'production');
+  }
+});
 test('old private responses are invalidated across sign-out and account switching', () => {
   const boundary=createSessionBoundary(), ticket=boundary.capture();
   assert.equal(boundary.current(ticket),true);boundary.reset();assert.equal(boundary.current(ticket),false);

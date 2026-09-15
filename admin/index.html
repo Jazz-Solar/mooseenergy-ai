@@ -113,7 +113,7 @@
       <!-- Onboarding pipeline -->
       <div class="h2row">
         <h2>ONBOARDING PIPELINE</h2>
-        <button class="btn-add" id="pAdd">+ Add planned user</button>
+        <button class="btn-add" id="pAdd" disabled>+ Add planned user</button>
       </div>
 
       <div class="card" id="pForm" style="display:none">
@@ -178,12 +178,14 @@
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.106.2';
-    import { selectEnvironment } from './environments.js';
+    import { selectEnvironment } from './environments.js?v=20260915-production-1';
+    import { functionEndpoint } from './function-endpoint.js';
     import { mountSiteAccess } from './site-access.js?v=20260914-onboarding-alerts-1';
     import { mountSiteRates } from './site-rates.js?v=20260914-fit-rates-1';
     import { mountAdminShell } from './admin-shell.js?v=20260914-fit-rates-1';
     import { createSessionBoundary } from './session-boundary.js';
-    const environment = selectEnvironment(location.search);
+    const environment = selectEnvironment(location.search, location.hostname);
+    const localProxy = !!document.querySelector('meta[name="moose-local-proxy"]');
     const SUPABASE_URL = environment.url;
     const ANON = environment.key;
     const supabase = createClient(SUPABASE_URL, ANON, { auth: {
@@ -236,12 +238,13 @@
       $('password').value = '';
       for (const id of ['pId','pName','pOrg','pEmail','pSystems','pDate','pOwner','pNotes']) $(id).value='';
       $('pForm').style.display='none';
+      $('pAdd').disabled = true;
     }
     async function callFn(name, payload) {
       const ticket = boundary.capture();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !boundary.current(ticket)) throw new Error('Sign in again to continue.');
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      const res = await fetch(functionEndpoint(environment, name, location, localProxy), {
         method: 'POST', cache: 'no-store',
         headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload ?? {}),
@@ -284,7 +287,7 @@
       $('subtitle').textContent = `Signed in as ${session.user.email} · data as of ${fmt(d.generated_at)}`;
 
       const activeToday = d.users.filter(u => u.last_sign_in_at && Date.now() - new Date(u.last_sign_in_at) < 864e5).length;
-      const openPipeline = (d.planned ?? []).filter(p => p.status !== 'onboarded').length;
+      const openPipeline = Array.isArray(d.planned) ? d.planned.filter(p => p.status !== 'onboarded').length : '—';
       $('tiles').innerHTML = [
         [d.totals.users, 'USERS'],
         [d.totals.systems, 'SYSTEMS'],
@@ -300,6 +303,10 @@
     }
 
     function renderHubSpot(d) {
+      if (!d.hubspot) {
+        $('hbar').textContent = 'HubSpot delivery summary is unavailable. Check individual feedback entries for delivery status.';
+        return;
+      }
       const h = d.hubspot ?? {};
       const failed = h.failed_all_time ?? 0;
       const delivered = (d.totals.feedback ?? 0) - failed;
@@ -317,7 +324,14 @@
     }
 
     function renderPipeline(d) {
-      const rows = d.planned ?? [];
+      const available = Array.isArray(d.planned);
+      $('pAdd').disabled = !available;
+      if (!available) {
+        $('pForm').style.display = 'none';
+        $('pipeline').querySelector('tbody').innerHTML = '<tr><td colspan="6" class="dim">The onboarding pipeline is unavailable in this environment. Use Requests and Assignments to manage site access.</td></tr>';
+        return;
+      }
+      const rows = d.planned;
       $('pipeline').querySelector('tbody').innerHTML = rows.length ? rows.map(p => `
         <tr>
           <td><b>${esc(p.name)}</b>${p.signed_up ? '<span class="match">✓ SIGNED UP</span>' : ''}
@@ -389,6 +403,7 @@
 
     // ---- pipeline add/edit/delete ----
     function openForm(row) {
+      if (!Array.isArray(DATA?.planned)) return;
       $('pErr').textContent = '';
       $('pId').value = row?.id ?? '';
       $('pName').value = row?.name ?? '';
