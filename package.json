@@ -1,0 +1,12 @@
+{
+  "name": "mooseenergy-staff-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "preview:production": "node scripts/preview-production.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node ../Mooose/tests/portal/staff-journey.mjs"
+  },
+  "devDependencies": { "playwright": "1.63.0" }
+}
