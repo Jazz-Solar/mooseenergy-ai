@@ -100,6 +100,16 @@ eligible; unverified users and customers before signup stay pending. Both direct
 are protected backend operations, independent of telemetry access.
 
 The `dev` branch carries portal changes; GitHub Pages publishes `main`.
+Request reviews rank possible sites against the submitted address or site name,
+including matches beyond the first directory page. Each hint links to that site's
+Solar.web permissions; selecting it still requires the reviewer to confirm the
+observed permission. Site options show saved addresses, or “Address not recorded”.
+New verification forms start with an editable UUID reference, Authorized email,
+and Guest; existing assignment verification values are retained. Run
+`npm run test:review-hints` for the desktop/mobile regression checks. Address
+metadata and address search require the companion backend migration
+`20260915030000_staff_site_catalog_addresses.sql`.
+
 Run `npm run dev` and open `http://127.0.0.1:4173/admin/?environment=development`.
 The companion app's `docs/site-access/presentation.md` contains the demo walkthrough.
 
