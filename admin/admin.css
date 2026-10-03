@@ -75,3 +75,12 @@
   .rate-dialog { padding:18px; }
   .admin-app .environment-bar { gap:8px; padding:12px; }
 }
+
+.health-dialog form { display: grid; gap: 12px; }
+.health-dialog textarea { width: 100%; min-height: 100px; box-sizing: border-box; resize: vertical; }
+.health-dialog small { display:block; margin-top:6px; }
+.health-dialog li { overflow-wrap:anywhere; margin-bottom:10px; }
+
+.health-dialog ul { padding-left: 1.25rem; margin: 1rem 0; }
+.health-dialog [data-review-error]:empty { display: none; }
+.health-dialog details li { overflow-wrap: anywhere; margin-bottom: .75rem; }
