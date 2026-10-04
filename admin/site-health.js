@@ -94,6 +94,7 @@ export function mountSiteHealth(root, call) {
       active = ["pending", "confirmed", "dispatched"].includes(r.status);
     $("[data-health-detail]").innerHTML =
       `<p><strong>${e(r.systemName)}</strong> · ${e(healthState(r.status))}</p><p>${r.scope === "account" ? "Private account warning. This review does not expose account settings or grant site access." : "This issue applies to connected accounts for this site."}</p>
+      ${r.scope === "account" ? `<p><small>Account reference<br>${e(r.accountId)}</small></p>` : ""}
       <ul>${r.causes.map((c) => `<li>${e(healthCause(c))}</li>`).join("")}</ul><p>Latest evidence: ${e(date(r.latestObservedAt))}</p>
       ${
         active
