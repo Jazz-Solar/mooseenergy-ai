@@ -27,8 +27,19 @@ export function confirmationTarget(hash) {
     if (redirect.origin !== 'https://mooseenergy.ai' || redirect.username || redirect.password || redirect.search
       || redirect.pathname !== `/auth/complete/${environment}/`) throw new Error('Invalid link');
     handoffFragment(redirect.hash);
+  } else {
+    // Older app versions cannot relay the code to a waiting phone. Keep the
+    // verification result in the browser; opening the app is an explicit choice.
+    url.searchParams.set('redirect_to', `https://mooseenergy.ai/auth/complete/${environment}/legacy/`);
   }
   return url.href;
+}
+export function legacyCompletionInput(href) {
+  const url = new URL(href);
+  const environment = Object.keys(projects).find(env => url.pathname === `/auth/complete/${env}/legacy/`);
+  if (!environment || url.origin !== 'https://mooseenergy.ai' || url.username || url.password || url.hash
+    || !unique(url.searchParams, ['code']) || !/^[A-Za-z0-9_-]{8,2048}$/.test(url.searchParams.get('code'))) throw new Error('Invalid link');
+  return { environment, callback: `${schemes[environment]}//auth/callback?code=${encodeURIComponent(url.searchParams.get('code'))}` };
 }
 export function completionInput(href) {
   const url = new URL(href);

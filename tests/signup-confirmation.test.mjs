@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {confirmationTarget,completionInput,handoffEndpoint} from '../auth/confirmation.js';
+import {confirmationTarget,completionInput,legacyCompletionInput,handoffEndpoint} from '../auth/confirmation.js';
 const id='12345678-1234-1234-1234-123456789abc',key='K'.repeat(43),code='fixture-auth-code';
 const redirect=`https://mooseenergy.ai/auth/complete/dev/#id=${id}&key=${key}`;
 const verify=new URL('https://vjgmkjqfzhnogawlgkrc.supabase.co/auth/v1/verify');
@@ -12,7 +12,8 @@ test('confirmation accepts only pinned signup verification endpoints and matchin
  }
  const recovery=new URL(verify);recovery.searchParams.set('type','recovery');assert.throws(()=>confirmationTarget('#'+recovery));
  const extra=new URL(verify);extra.searchParams.append('token','other');assert.throws(()=>confirmationTarget('#'+extra));
- const legacy=new URL(verify);legacy.searchParams.set('redirect_to','moose-dev://auth/callback');assert.equal(confirmationTarget('#'+legacy),legacy.href);
+ const legacy=new URL(verify);legacy.searchParams.set('redirect_to','moose-dev://auth/callback');
+ assert.equal(new URL(confirmationTarget('#'+legacy)).searchParams.get('redirect_to'),'https://mooseenergy.ai/auth/complete/dev/legacy/');
  assert.throws(()=>confirmationTarget('#'+verify.href.replace('.supabase.co','.supabase.co.evil.invalid')));
 });
 test('completion sends a PKCE code to the matching environment and never accepts session tokens',()=>{
@@ -28,8 +29,10 @@ test('HTML email button encoding preserves legacy and cross-device signup target
   for(const target of [`${scheme}://auth/callback`,`https://mooseenergy.ai/auth/complete/${environment}/#id=${id}&key=${key}`]) {
    const link=new URL(`https://${project}.supabase.co/auth/v1/verify`);
    link.search=new URLSearchParams({token:'pkce_'+'a'.repeat(56),type:'signup',redirect_to:target});
-   assert.equal(confirmationTarget('#'+encodeURIComponent(link.href)),link.href);
-   assert.equal(confirmationTarget('#'+link.href),link.href);
+   const expected=new URL(link);
+   if(target.startsWith(scheme+':')) expected.searchParams.set('redirect_to',`https://mooseenergy.ai/auth/complete/${environment}/legacy/`);
+   assert.equal(confirmationTarget('#'+encodeURIComponent(link.href)),expected.href);
+   assert.equal(confirmationTarget('#'+link.href),expected.href);
    assert.throws(()=>confirmationTarget('#'+encodeURIComponent(encodeURIComponent(link.href))));
    for(const bad of ['https://evil.invalid/',target+'?unexpected=1']) {
     const invalid=new URL(link);invalid.searchParams.set('redirect_to',bad);
@@ -43,4 +46,12 @@ test('HTML email button encoding preserves legacy and cross-device signup target
  const recovery=new URL(verify);recovery.searchParams.set('type','recovery');
  assert.throws(()=>confirmationTarget('#'+encodeURIComponent(recovery.href)));
  assert.throws(()=>confirmationTarget('#'+encodeURIComponent(verify.href.replace('.supabase.co','.supabase.co.evil.invalid'))));
+});
+test('legacy browser completion offers only the matching app callback and rejects error/session redirects',()=>{
+ for(const [environment,scheme] of [['dev','moose-dev'],['production','moose']]) {
+  const link=`https://mooseenergy.ai/auth/complete/${environment}/legacy/?code=${code}`;
+  assert.deepEqual(legacyCompletionInput(link),{environment,callback:`${scheme}://auth/callback?code=${code}`});
+  for(const bad of [link+'&code=other',link.replace('?code=','?error='),link.replace('?code=','?access_token='),link+'#access_token=secret',link.replace('mooseenergy.ai','evil.invalid'),link.replace(code,'a.b.c')])
+   assert.throws(()=>legacyCompletionInput(bad));
+ }
 });

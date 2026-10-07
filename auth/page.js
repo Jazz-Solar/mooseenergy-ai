@@ -1,4 +1,4 @@
-import { confirmationTarget, completionInput, handoffEndpoint } from './confirmation.js?v=20261007.1';
+import { confirmationTarget, completionInput, legacyCompletionInput, handoffEndpoint } from './confirmation.js?v=20261007.2';
 import { environments } from '../admin/environments.js';
 const original = location.href;
 // Clear capabilities from browser history before any request or interaction.
@@ -15,6 +15,17 @@ if (location.pathname === '/auth/confirm/') {
     button.hidden = false;
     // No automatic verification: email security scanners must not consume the link.
     button.addEventListener('click', () => { button.disabled = true; location.replace(target); });
+  } catch { unavailable(); }
+} else if (/^\/auth\/complete\/(dev|production)\/legacy\/$/.test(location.pathname)) {
+  try {
+    const input = legacyCompletionInput(original);
+    title.textContent = 'Your email is confirmed';
+    message.textContent = 'Return to Moose on your phone and sign in with the password you chose. If you opened this email on the phone where you signed up, you can open Moose below.';
+    button.textContent = 'Open Moose on this device';
+    button.hidden = false;
+    // A laptop may have no app handler. Keep the success state and password
+    // fallback visible even when the optional app launch is unavailable.
+    button.addEventListener('click', () => { location.href = input.callback; });
   } catch { unavailable(); }
 } else {
   let input;
