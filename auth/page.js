@@ -1,4 +1,4 @@
-import { confirmationTarget, completionInput, handoffEndpoint } from './confirmation.js';
+import { confirmationTarget, completionInput, handoffEndpoint } from './confirmation.js?v=20261007.1';
 import { environments } from '../admin/environments.js';
 const original = location.href;
 // Clear capabilities from browser history before any request or interaction.
