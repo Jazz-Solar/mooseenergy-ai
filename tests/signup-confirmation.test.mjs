@@ -23,3 +23,24 @@ test('completion sends a PKCE code to the matching environment and never accepts
  assert.equal(handoffEndpoint('dev'),'https://vjgmkjqfzhnogawlgkrc.supabase.co/functions/v1/signup-handoff');
  assert.throws(()=>handoffEndpoint('__proto__'));
 });
+test('HTML email button encoding preserves legacy and cross-device signup targets',()=>{
+ for(const [environment,project,scheme] of [['dev','vjgmkjqfzhnogawlgkrc','moose-dev'],['production','rcwynvzgzzywrormxlqp','moose']]) {
+  for(const target of [`${scheme}://auth/callback`,`https://mooseenergy.ai/auth/complete/${environment}/#id=${id}&key=${key}`]) {
+   const link=new URL(`https://${project}.supabase.co/auth/v1/verify`);
+   link.search=new URLSearchParams({token:'pkce_'+'a'.repeat(56),type:'signup',redirect_to:target});
+   assert.equal(confirmationTarget('#'+encodeURIComponent(link.href)),link.href);
+   assert.equal(confirmationTarget('#'+link.href),link.href);
+   assert.throws(()=>confirmationTarget('#'+encodeURIComponent(encodeURIComponent(link.href))));
+   for(const bad of ['https://evil.invalid/',target+'?unexpected=1']) {
+    const invalid=new URL(link);invalid.searchParams.set('redirect_to',bad);
+    assert.throws(()=>confirmationTarget('#'+encodeURIComponent(invalid.href)));
+   }
+   const duplicate=new URL(link);duplicate.searchParams.append('token','other');
+   assert.throws(()=>confirmationTarget('#'+encodeURIComponent(duplicate.href)));
+  }
+ }
+ assert.throws(()=>confirmationTarget('#https%3A%2F%2Fexample.invalid%ZZ'));
+ const recovery=new URL(verify);recovery.searchParams.set('type','recovery');
+ assert.throws(()=>confirmationTarget('#'+encodeURIComponent(recovery.href)));
+ assert.throws(()=>confirmationTarget('#'+encodeURIComponent(verify.href.replace('.supabase.co','.supabase.co.evil.invalid'))));
+});
