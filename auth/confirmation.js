@@ -12,7 +12,11 @@ function handoffFragment(hash) {
 }
 export function confirmationTarget(hash) {
   if (!hash || hash.length > 8192) throw new Error('Invalid link');
-  const url = new URL(hash.slice(1));
+  // Go's HTML email templates encode a URL inserted after a literal '#'.
+  // Decode that outer layer once, preserving the verification URL's own
+  // encoded redirect and handoff fragment. Plain-text links remain valid.
+  const value = hash.slice(1);
+  const url = new URL(/^https%3a%2f%2f/i.test(value) ? decodeURIComponent(value) : value);
   const environment = Object.keys(projects).find(env => url.origin === `https://${projects[env]}.supabase.co`);
   if (!environment || url.username || url.password || url.hash || url.pathname !== '/auth/v1/verify'
     || !unique(url.searchParams, ['token', 'type', 'redirect_to']) || url.searchParams.get('type') !== 'signup'

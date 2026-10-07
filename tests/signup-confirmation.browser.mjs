@@ -9,7 +9,7 @@ const verify=new URL('https://vjgmkjqfzhnogawlgkrc.supabase.co/auth/v1/verify');
 verify.search=new URLSearchParams({token:'test-token-1234567890',type:'signup',redirect_to:redirect});
 const browser=await chromium.launch({headless:true});
 try {
- for(const [label,viewport] of [['desktop',{width:1280,height:900}],['phone',{width:390,height:844}]]) {
+ for(const [label,viewport] of [['desktop',{width:1280,height:900}],['phone',{width:390,height:844}]]) for(const encoded of [false,true]) {
   const context=await browser.newContext({viewport}), page=await context.newPage(), errors=[], submissions=[];
   let verifications=0, fail=false;
   page.on('pageerror',e=>errors.push(e.message));
@@ -30,12 +30,12 @@ try {
    submissions.push(route.request().postDataJSON());
    return route.fulfill({status:fail?503:200,headers:{'access-control-allow-origin':'https://mooseenergy.ai'},json:fail?{}:{data:{status:'submitted'}}});
   });
-  await page.goto('https://mooseenergy.ai/auth/confirm/#'+verify.href);
+  await page.goto('https://mooseenergy.ai/auth/confirm/#'+(encoded?encodeURIComponent(verify.href):verify.href));
   await page.getByRole('button',{name:'Confirm my email'}).waitFor();
   assert.equal(verifications,0,'Loading a scanner link cannot consume confirmation');
   assert.equal(new URL(page.url()).hash,'');
   assert.ok(await page.locator('img').evaluate(img=>img.complete&&img.naturalWidth>0));
-  if(artifacts){await mkdir(artifacts,{recursive:true});await page.screenshot({path:resolve(artifacts,`confirmation-${label}.png`),fullPage:true});}
+  if(artifacts){await mkdir(artifacts,{recursive:true});await page.screenshot({path:resolve(artifacts,`confirmation-${label}-${encoded?'email-button':'plain-link'}.png`),fullPage:true});}
   await page.getByRole('button',{name:'Confirm my email'}).click();
   await page.getByRole('heading',{name:'Your email is confirmed'}).waitFor({timeout:10000});
   assert.equal(verifications,1);assert.equal(submissions.length,1);
@@ -50,5 +50,5 @@ try {
   assert.equal(submissions.length,3);
   assert.deepEqual(errors,[]);await context.close();
  }
- console.log('Desktop and phone confirmation, scanner protection, code relay and retry passed.');
+ console.log('Desktop and phone confirmation for HTML email buttons and plain links, scanner protection, code relay and retry passed.');
 } finally {await browser.close();}
