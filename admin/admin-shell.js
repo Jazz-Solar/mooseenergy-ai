@@ -1,6 +1,7 @@
 const pages = [
   ['overview','Overview','M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z'],
   ['health','Site health','M3 12h4l3-8 4 16 3-8h4'],
+  ['alerts','Alert monitoring','M12 3a7 7 0 0 0-7 7v5l-2 3h18l-2-3v-5a7 7 0 0 0-7-7 M9 21h6 M12 7v5'],
   ['rates','Sites & FIT rates','M3 20h18 M5 16V9l7-5 7 5v7 M9 20v-7h6v7'],
   ['reviews','Requests','M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h4'],
   ['mappings','Assignments','M8 12h8 M9 7H6a5 5 0 0 0 0 10h3 M15 7h3a5 5 0 0 1 0 10h-3'],

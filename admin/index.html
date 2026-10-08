@@ -69,6 +69,7 @@
   </style>
   <link rel="stylesheet" href="./site-access.css?v=20260915-review-hints-1" />
   <link rel="stylesheet" href="./admin.css?v=20260914-fit-rates-1" />
+  <link rel="stylesheet" href="./alert-monitoring.css?v=20261008-1" />
 </head>
 <body class="admin-app">
   <aside class="admin-sidebar" id="admin-sidebar" hidden aria-label="Admin sidebar">
@@ -101,6 +102,7 @@
     <div id="dash" style="display:none">
       <section id="site-access" data-admin-section="access" hidden></section>
       <section id="site-health" data-admin-section="health" class="admin-page" hidden></section>
+      <section id="alert-monitoring" data-admin-section="alerts" class="admin-page" hidden></section>
       <section id="site-rates" data-admin-section="rates" class="admin-page" hidden></section>
       <section data-admin-section="overview" class="admin-page" hidden>
       <h2>Staff overview</h2><p>Account activity and service health at a glance.</p>
@@ -183,8 +185,9 @@
     import { functionEndpoint } from './function-endpoint.js';
     import { mountSiteAccess } from './site-access.js?v=20260915-review-hints-1';
     import { mountSiteHealth } from './site-health.js?v=20261003-health-1';
+    import { mountAlertMonitoring } from './alert-monitoring.js?v=20261008-1';
     import { mountSiteRates } from './site-rates.js?v=20260914-fit-rates-1';
-    import { mountAdminShell } from './admin-shell.js?v=20261003-health-1';
+    import { mountAdminShell } from './admin-shell.js?v=20261008-alerts-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search, location.hostname);
     const localProxy = !!document.querySelector('meta[name="moose-local-proxy"]');
@@ -194,8 +197,8 @@
       storageKey: environment.storageKey, detectSessionInUrl: false,
     }});
     const boundary = createSessionBoundary();
-    let workspace = null, rates = null, health = null;
-    const pageNames = {overview:'Overview',health:'Site health',rates:'Sites & FIT rates',reviews:'Requests',mappings:'Assignments',assignments:'Active access',history:'Access history',pipeline:'Onboarding',users:'Users',feedback:'Feedback'};
+    let workspace = null, rates = null, health = null, alerts = null;
+    const pageNames = {overview:'Overview',health:'Site health',alerts:'Alert monitoring',rates:'Sites & FIT rates',reviews:'Requests',mappings:'Assignments',assignments:'Active access',history:'Access history',pipeline:'Onboarding',users:'Users',feedback:'Feedback'};
     const shell = mountAdminShell(page => {
       if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false) return false;
       const access = ['reviews','mappings','assignments','history'].includes(page);
@@ -205,6 +208,7 @@
       }
       document.querySelectorAll('[data-admin-section]').forEach(section => section.hidden = section.dataset.adminSection !== (access ? 'access' : page));
       document.getElementById('admin-page-title').textContent = pageNames[page];
+      if (page === 'alerts') void alerts?.refresh();
       return true;
     });
     document.getElementById('admin-environment').textContent = environment.label;
@@ -229,7 +233,7 @@
       boundary.reset();
       DATA = null;
       workspace?.destroy(); workspace = null;
-      rates?.destroy(); rates = null; health?.destroy(); health = null; shell.reset();
+      rates?.destroy(); rates = null; health?.destroy(); health = null; alerts?.destroy(); alerts = null; shell.reset();
       $('site-rates').replaceChildren(); $('site-health').replaceChildren();
       $('site-access').replaceChildren();
       for (const id of ['tiles','hbar','drawer']) $(id).replaceChildren();
@@ -283,6 +287,7 @@
       workspace = mountSiteAccess($('site-access'), callFn, readiness.data);
       rates?.destroy(); rates = mountSiteRates($('site-rates'), callFn);
       health?.destroy(); health = mountSiteHealth($('site-health'), callFn);
+      alerts?.destroy(); alerts = mountAlertMonitoring($('alert-monitoring'), callFn);
       $('login').style.display = 'none';
       $('dash').style.display = 'block';
       $('signout').style.display = 'block';
