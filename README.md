@@ -45,6 +45,8 @@ for desktop/mobile journeys (requires the sibling `Mooose` repo, its dependencie
 and `npx playwright install chromium`). The backend implementation and rollout
 requirements are documented in `../Mooose/docs/site-access/README.md`.
 
+**Alert monitoring** shows connected sites in the 48-hour waiting period, daily-reminder eligibility, setup/reading gaps, next checks and per-recipient notification history. Reviewed historical qualifications are labeled separately from continuous checks. It uses the verified-admin `staff-site-access` action `alert_monitoring`; deploy the matching Mooose migrations and Edge first. Run `npm run test:alerts:browser` for desktop/mobile navigation, filtering, failure recovery and session-clearing coverage. The view refreshes every minute while open and cannot send or prequalify alerts.
+
 **Verify the matching production backend before publishing portal changes.** The
 original preflight found missing onboarding migrations. A read-only production
 check on September 15, 2026 found those migrations, the workspace/review-v2/FIT-rate

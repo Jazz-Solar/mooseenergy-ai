@@ -6,6 +6,7 @@
     "dev": "python3 -m http.server 4173 --bind 127.0.0.1",
     "preview:production": "node scripts/preview-production.mjs",
     "test": "node --test tests/*.test.mjs",
+    "test:alerts:browser": "node tests/alert-monitoring.browser.mjs",
     "test:browser": "node ../Mooose/tests/portal/staff-journey.mjs",
     "test:review-hints": "node tests/review-hints.browser.mjs"
   },
