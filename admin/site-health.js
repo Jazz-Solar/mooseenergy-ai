@@ -145,8 +145,7 @@ export function mountSiteHealth(root, call) {
           : ""
       }
       <details><summary>Recorded review history</summary><ol>${(r.events || []).map((v) => `<li><strong>${e(v.kind)}</strong> · ${e(v.actorKind)}${v.actorId ? ` (${e(v.actorId)})` : ""} · ${e(date(v.at))}${v.note ? `<p>${e(v.note)}</p>` : ""}</li>`).join("")}</ol></details>`;
-    const form = $("[data-health-review]");
-    if (form) form.elements.note.focus();
+
   }
   function close() {
     if (busy) return;

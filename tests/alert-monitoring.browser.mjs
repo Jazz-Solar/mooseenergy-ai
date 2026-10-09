@@ -62,7 +62,10 @@ try{
    await page.screenshot({path:`${artifacts}/${label}-alert-monitoring.png`,fullPage:true});
    await page.locator('details[data-alert-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"] summary').click();
    await page.locator('details[data-alert-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"]').getByText('jon@jazzsolar.com',{exact:true}).waitFor();
-   await page.getByRole('button',{name:'Refresh monitoring',exact:true}).click();
+   await accounts.locator('summary').click();
+   hold=true;await page.getByRole('button',{name:'Refresh monitoring',exact:true}).click();
+   await page.waitForFunction(()=>document.querySelector('[data-alert-message]').textContent.includes('Loading'));
+   await accounts.locator('summary').click();release?.();hold=false;
    await page.waitForFunction(()=>document.querySelector('[data-alert-message]').textContent==='');
    assert.equal(await page.locator('details[data-alert-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"]').getAttribute('open'),'');
    await accounts.getByText('Connected accounts (1)',{exact:true}).waitFor();assert.equal(await accounts.locator('details').getAttribute('open'),'');

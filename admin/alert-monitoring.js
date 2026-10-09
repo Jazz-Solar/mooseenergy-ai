@@ -67,11 +67,11 @@ export function mountAlertMonitoring(root, call) {
     const ticket = ++generation;
     loading = true;
     $('[data-alert-message]').textContent = 'Loading monitoring status…';
-    const expanded = new Set([...root.querySelectorAll('details[data-alert-site][open]')].map(node => node.dataset.alertSite));
-    const expandedAccounts = new Set([...root.querySelectorAll('[data-connected-site]')].filter(node => node.querySelector('details[open]')).map(node => node.dataset.connectedSite));
     try {
       const response = await call('staff-site-access', { action:'alert_monitoring', input:{search:$('#alert-search').value.trim(),status:$('#alert-state').value,offset} });
       if (!alive || ticket !== generation) return;
+      const expanded = new Set([...root.querySelectorAll('details[data-alert-site][open]')].map(node => node.dataset.alertSite));
+      const expandedAccounts = new Set([...root.querySelectorAll('[data-connected-site]')].filter(node => node.querySelector('details[open]')).map(node => node.dataset.connectedSite));
       render(response.data, expanded, expandedAccounts);
       $('[data-alert-message]').textContent = '';
     } catch (err) {
