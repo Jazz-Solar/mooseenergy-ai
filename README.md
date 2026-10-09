@@ -127,3 +127,10 @@ and queues owner emails plus one email per distinct preferred technician, with a
 factual evidence summary. This requires the `staff_health_sites` RPC and the
 confirmed-fault technician migration. Run `npm run test:health:browser` for the
 site summary and review flow; publish only after the matching backend is verified.
+
+Site health and Alert monitoring provide direct Solar.web site links in a new
+tab. Site health reviews show connected account names, emails and roles; expand
+Connected accounts in Alert monitoring for the same information. The list reads
+every page of the existing staff assignment directory, matches the exact site,
+and includes all connected assignments (labeling inactive access). Provider
+sign-in and permissions continue to apply. No backend migration is needed.
