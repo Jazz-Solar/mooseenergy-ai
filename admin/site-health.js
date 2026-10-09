@@ -1,3 +1,4 @@
+import { providerSiteLink, mountConnectedAccounts } from './site-context.js?v=20261009-site-context-1';
 import { escapeHtml as e } from "./site-access.js?v=20260914-fit-rates-1";
 export const healthState = (status) =>
   ({
@@ -35,6 +36,7 @@ export function mountSiteHealth(root, call) {
     next = null,
     rows = [],
     selected = null,
+    connectedAccounts = null,
     site = null,
     incidents = [],
     incidentOffset = 0,
@@ -44,7 +46,7 @@ export function mountSiteHealth(root, call) {
   root.innerHTML = `<h2>Site health</h2><p>One entry per site. Open a site to review its issues, confirm a physical fault or record recovery. Duration starts with the earliest recorded open issue.</p>
     <form data-health-filter class="rates-toolbar"><div><label for="health-status">Status</label><select id="health-status"><option value="active">All active sites</option><option value="yellow">Yellow · needs review</option><option value="red">Red · confirmed</option><option value="resolved">Recovered</option><option value="dismissed">Dismissed</option></select></div><button>Refresh queue</button></form>
     <p data-health-message role="status" class="access-message"></p><div data-health-rows></div><div class="rates-pager"><button type="button" data-health-prev>Previous</button><span data-health-page></span><button type="button" data-health-next>Next</button></div>
-    <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><h3 id="health-title">Review site health</h3><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-issues></div><div data-health-detail></div></dialog>`;
+    <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><h3 id="health-title">Review site health</h3><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-site-link></div><div data-health-accounts></div><div data-health-issues></div><div data-health-detail></div></dialog>`;
   const $ = (s) => root.querySelector(s),
     dialog = $("dialog");
   const message = (text) => {
@@ -54,7 +56,7 @@ export function mountSiteHealth(root, call) {
     rows = data.items;
     next = data.nextOffset;
     $("[data-health-rows]").innerHTML = rows.length
-      ? `<div class="access-table-scroll" role="region" aria-label="Site health queue" tabindex="0"><table class="access-table"><thead><tr><th>Site</th><th>Status and issues</th><th>Open for</th><th>Latest evidence</th><th></th></tr></thead><tbody>${rows.map((r, index) => `<tr><td><strong>${e(r.systemName)}</strong><small>${Number(r.issueCount)} issue${r.issueCount === 1 ? "" : "s"} · ${Number(r.sharedCount)} shared · ${Number(r.privateCount)} account</small></td><td><strong>${e(healthState(r.status))}</strong><small>${e((r.summaries || []).join(" · "))}</small></td><td>${["yellow", "red"].includes(r.status) ? `<strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong><small>Since ${e(date(r.firstObservedAt))}</small>` : "Closed · see issue history"}</td><td>${e(date(r.latestObservedAt))}</td><td><button type="button" data-health-open="${index}" aria-label="Review health for ${e(r.systemName)}">Review site</button></td></tr>`).join("")}</tbody></table></div>`
+      ? `<div class="access-table-scroll" role="region" aria-label="Site health queue" tabindex="0"><table class="access-table"><thead><tr><th>Site</th><th>Status and issues</th><th>Open for</th><th>Latest evidence</th><th></th></tr></thead><tbody>${rows.map((r, index) => `<tr><td><strong>${e(r.systemName)}</strong>${providerSiteLink(r.systemId, r.systemName)}<small>${Number(r.issueCount)} issue${r.issueCount === 1 ? "" : "s"} · ${Number(r.sharedCount)} shared · ${Number(r.privateCount)} account</small></td><td><strong>${e(healthState(r.status))}</strong><small>${e((r.summaries || []).join(" · "))}</small></td><td>${["yellow", "red"].includes(r.status) ? `<strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong><small>Since ${e(date(r.firstObservedAt))}</small>` : "Closed · see issue history"}</td><td>${e(date(r.latestObservedAt))}</td><td><button type="button" data-health-open="${index}" aria-label="Review health for ${e(r.systemName)}">Review site</button></td></tr>`).join("")}</tbody></table></div>`
       : '<div class="access-empty">No sites match this status.</div>';
     $("[data-health-page]").textContent = rows.length
       ? `${offset + 1}–${offset + rows.length} of ${data.total} sites`
@@ -88,6 +90,9 @@ export function mountSiteHealth(root, call) {
     site = row;
     incidentOffset = 0;
     returnFocus = button;
+    $("[data-health-site-link]").innerHTML = providerSiteLink(row.systemId, row.systemName);
+    connectedAccounts?.destroy();
+    connectedAccounts = mountConnectedAccounts($("[data-health-accounts]"), call, row.systemId, true);
     dialog.showModal();
     await loadIssues();
   }
@@ -149,6 +154,9 @@ export function mountSiteHealth(root, call) {
     selected = null;
     site = null;
     incidents = [];
+    connectedAccounts?.destroy();
+    connectedAccounts = null;
+    $("[data-health-site-link]").replaceChildren();
     dialog.close();
     $("[data-health-issues]").replaceChildren();
     $("[data-health-detail]").replaceChildren();
@@ -257,6 +265,7 @@ export function mountSiteHealth(root, call) {
       clearInterval(timer);
       ++generation;
       keys.clear();
+      connectedAccounts?.destroy();
       dialog.close();
       root.removeEventListener("click", click);
       root.removeEventListener("submit", submit);

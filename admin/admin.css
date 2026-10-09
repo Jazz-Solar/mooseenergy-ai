@@ -101,3 +101,15 @@
   [data-health-rows] .access-table td:last-child { position: static; width: auto; border-left: 0; }
   [data-health-rows] .access-table button { width: 100%; }
 }
+
+.site-provider-link { display: inline-block; margin: 8px 0; color: #a6d9ff; text-decoration: underline; text-underline-offset: 3px; line-height: 1.5; }
+.site-provider-link:focus-visible { outline: 2px solid #a6d9ff; outline-offset: 4px; border-radius: 2px; }
+.site-accounts { margin: 12px 0; padding: 12px 14px; border: 1px solid #343438; border-radius: 10px; }
+.site-accounts summary { cursor: pointer; font-weight: 600; line-height: 1.5; }
+.site-accounts p { margin: 12px 0; line-height: 1.5; }
+.site-account-scroll { max-height: 240px; overflow: auto; margin-top: 12px; }
+.site-account-scroll ul, .health-dialog .site-account-scroll ul { list-style: none; margin: 0; padding: 0; }
+.site-account-scroll li { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid #343438; overflow-wrap: anywhere; }
+.site-account-scroll li:first-child { border-top: 0; padding-top: 0; }
+.site-account-scroll span { color: #d4d4d8; }
+.site-account-scroll small { color: #a1a1aa; }

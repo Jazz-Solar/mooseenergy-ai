@@ -20,7 +20,7 @@ const now=Date.now(), at=hours=>new Date(now+hours*3600e3).toISOString();
 const recipients=['glani@jazzsolar.com','jon@jazzsolar.com','monitoring@jazzsolar.com'].map(email=>({email,lastSentAt:null,nextAllowedAt:null,due:true,queued:0,uncertain:0}));
 const base={blockers:[],enrolled:true,connected:true,modelAvailable:true,lastCheckedAt:at(-.02),nextCheckAt:at(.8),emailEligibleNow:false,recipients};
 const fixture=[
- {...base,systemId:'ready',siteName:'North roof',state:'ready',devices:[{deviceId:'1',name:'Inverter 01',condition:'underperforming',prequalified:true,mature:true,historicalFirstObservedAt:at(-78),lastObservedAt:at(-.02),fresh:true,observedHours:2}],emailEligibleNow:true,recipients:recipients.map(r=>({...r,lastSentAt:at(-25),nextAllowedAt:at(-1),queued:1}))},
+ {...base,systemId:'f:ae636650-d4f3-47a1-9bd4-33f07387daa3',siteName:'North roof',state:'ready',devices:[{deviceId:'1',name:'Inverter 01',condition:'underperforming',prequalified:true,mature:true,historicalFirstObservedAt:at(-78),lastObservedAt:at(-.02),fresh:true,observedHours:2}],emailEligibleNow:true,recipients:recipients.map(r=>({...r,lastSentAt:at(-25),nextAllowedAt:at(-1),queued:1}))},
  {...base,systemId:'watch',siteName:'Community centre',state:'watching',devices:[{deviceId:'2',name:'Inverter 02',condition:'offline',firstObservedAt:at(-31),lastObservedAt:at(-.02),observedHours:30.98,qualifiesAt:at(17),fresh:true}]},
  {...base,systemId:'blocked',siteName:'East roof <script>fixture</script>',state:'blocked',blockers:['daylight_unavailable'],modelAvailable:false,devices:[]},
  {...base,systemId:'good',siteName:'South roof',state:'monitoring',devices:[]},
@@ -35,6 +35,7 @@ try{
    const body=route.request().postDataJSON(),name=new URL(route.request().url()).pathname.split('/').at(-1);
    let data;
    if(name==='admin-stats') data={ok:true,generated_at:at(0),totals:{users:1,systems:4,feedback:0},users:[],feedback:[]};
+   else if(body.action==='list' && body.input.view==='assignments') data={data:{rows:[{system_id:body.input.search,user_id:'account-1',status:'connected',customer_name:'Connected owner',customer_email:'owner@example.invalid',role:'owner',effective_access:true}],hasMore:false}};
    else if(body.action==='alert_monitoring') {
     if(hold)await new Promise(r=>release=r);
     if(fail){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture temporarily unavailable.'}})});return;}
@@ -53,14 +54,18 @@ try{
    await page.getByRole('button',{name:'Sign In',exact:true}).click();await page.getByRole('heading',{name:'Staff overview'}).waitFor();
    await navigate('Alert monitoring');await page.getByRole('heading',{name:'North roof',exact:true}).waitFor();
    assert.equal(await page.locator('#alert-monitoring script').count(),0,'provider text is escaped');
+   assert.equal(await page.locator('.site-provider-link').count(),1,'unknown providers do not get guessed links');
+   const accounts=page.locator('[data-connected-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"]');
+   await accounts.locator('summary').click();await accounts.getByText('owner@example.invalid',{exact:true}).waitFor();
    await page.getByText('Prequalified from history',{exact:true}).waitFor();
    assert.equal(await page.locator('body').evaluate(el=>el.scrollWidth<=innerWidth),true,'no mobile overflow');
    await page.screenshot({path:`${artifacts}/${label}-alert-monitoring.png`,fullPage:true});
-   await page.locator('details[data-alert-site="ready"] summary').click();
-   await page.locator('details[data-alert-site="ready"]').getByText('jon@jazzsolar.com',{exact:true}).waitFor();
+   await page.locator('details[data-alert-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"] summary').click();
+   await page.locator('details[data-alert-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"]').getByText('jon@jazzsolar.com',{exact:true}).waitFor();
    await page.getByRole('button',{name:'Refresh monitoring',exact:true}).click();
    await page.waitForFunction(()=>document.querySelector('[data-alert-message]').textContent==='');
-   assert.equal(await page.locator('details[data-alert-site="ready"]').getAttribute('open'),'');
+   assert.equal(await page.locator('details[data-alert-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"]').getAttribute('open'),'');
+   await accounts.getByText('Connected accounts (1)',{exact:true}).waitFor();assert.equal(await accounts.locator('details').getAttribute('open'),'');
    await page.locator('[data-alert-status="watching"]').click();
    await page.waitForFunction(()=>document.querySelectorAll('.alerts-site').length===1);
    assert.equal(await page.locator('.alerts-site').count(),1);
@@ -76,7 +81,7 @@ try{
    await page.getByRole('button',{name:'Sign out',exact:true}).click();
    release?.();hold=false;await page.getByRole('button',{name:'Sign In',exact:true}).waitFor();
    assert.equal(await page.locator('#alert-monitoring').textContent(),'');assert.deepEqual(errors,[]);
-   console.log(`${label}: navigation, qualification, progress, recipients, filters, errors and session clearing passed`);
+   console.log(`${label}: navigation, qualification, progress, provider link, connected accounts across refresh, recipients, filters, errors and session clearing passed`);
   }finally{release?.();await context.close();}
  }
 }finally{await browser.close();await new Promise(r=>server.close(r));}
