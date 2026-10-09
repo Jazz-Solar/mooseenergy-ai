@@ -118,3 +118,12 @@ The companion app's `docs/site-access/presentation.md` contains the demo walkthr
 Company asset of JAZZ Solar Solutions / Moose AI (Jazz-Solar GitHub org).
 Related repos: `Jazz-Solar/Mooose` (mobile app), `Jazz-Solar/Inverto`
 (interop API), `Jazz-Solar/moose-digital-twin` (pvlib twin).
+
+**Site health** groups incidents by site before pagination. Active sites show the
+highest confirmed status and elapsed time since the earliest recorded open issue;
+closed history does not extend that duration. Review retains each incident's
+shared/account scope. Staff-confirmed red updates connected owners' app health
+and queues owner emails plus one email per distinct preferred technician, with a
+factual evidence summary. This requires the `staff_health_sites` RPC and the
+confirmed-fault technician migration. Run `npm run test:health:browser` for the
+site summary and review flow; publish only after the matching backend is verified.

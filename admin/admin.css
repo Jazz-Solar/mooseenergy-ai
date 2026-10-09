@@ -84,3 +84,20 @@
 .health-dialog ul { padding-left: 1.25rem; margin: 1rem 0; }
 .health-dialog [data-review-error]:empty { display: none; }
 .health-dialog details li { overflow-wrap: anywhere; margin-bottom: .75rem; }
+
+.health-dialog [data-health-detail] > p { margin: 12px 0; line-height: 1.5; }
+.health-dialog [data-health-issues] > p { margin-top: 8px; color: #a1a1aa; font-size: 12px; }
+@media (max-width: 680px) {
+  [data-health-rows] .access-table-scroll { overflow: visible; border: 0; }
+  [data-health-rows] .access-table { min-width: 0; display: block; }
+  [data-health-rows] thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  [data-health-rows] tbody { display: grid; gap: 14px; }
+  [data-health-rows] tr { display: grid; border: 1px solid #343438; border-radius: 12px; overflow: hidden; background: #141414; }
+  [data-health-rows] .access-table td { display: block; max-width: none; padding: 12px 16px; }
+  [data-health-rows] .access-table td:first-child { border-top: 0; font-size: 16px; }
+  [data-health-rows] td:nth-child(3)::before { content: 'Open for'; }
+  [data-health-rows] td:nth-child(4)::before { content: 'Latest evidence'; }
+  [data-health-rows] td:nth-child(3)::before, [data-health-rows] td:nth-child(4)::before { display: block; color: #a1a1aa; font-size: 11px; margin-bottom: 6px; }
+  [data-health-rows] .access-table td:last-child { position: static; width: auto; border-left: 0; }
+  [data-health-rows] .access-table button { width: 100%; }
+}
