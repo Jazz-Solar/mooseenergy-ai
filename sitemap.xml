@@ -14,7 +14,7 @@
   </url>
   <url>
     <loc>https://mooseenergy.ai/privacy-policy.html</loc>
-    <lastmod>2025-01-14</lastmod>
+    <lastmod>2026-10-13</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
@@ -24,4 +24,6 @@
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+  <url><loc>https://mooseenergy.ai/delete-account.html</loc><lastmod>2026-10-13</lastmod><priority>0.3</priority></url>
+  <url><loc>https://mooseenergy.ai/support.html</loc><lastmod>2026-10-13</lastmod><priority>0.3</priority></url>
 </urlset>
