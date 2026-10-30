@@ -1,5 +1,6 @@
 import { providerSiteLink, mountConnectedAccounts } from './site-context.js?v=20261009-site-context-1';
 import { escapeHtml as e } from "./site-access.js?v=20260914-fit-rates-1";
+import { mountHealthModels } from './health-models.js?v=20261030-1';
 export const healthState = (status) =>
   ({
     yellow: "Yellow · needs review",
@@ -43,12 +44,13 @@ export function mountSiteHealth(root, call) {
     incidentNext = null,
     returnFocus = null;
   const keys = new Map();
-  root.innerHTML = `<h2>Site health</h2><p>One entry per site. Open a site to review its issues, confirm a physical fault or record recovery. Duration starts with the earliest recorded open issue.</p>
+  root.innerHTML = `<h2>Site health</h2><div data-health-models></div><h3>Health review queue</h3><p>One entry per site. Open a site to review its issues, confirm a physical fault or record recovery. Duration starts with the earliest recorded open issue.</p>
     <form data-health-filter class="rates-toolbar"><div><label for="health-status">Status</label><select id="health-status"><option value="active">All active sites</option><option value="yellow">Yellow · needs review</option><option value="red">Red · confirmed</option><option value="resolved">Recovered</option><option value="dismissed">Dismissed</option></select></div><button>Refresh queue</button></form>
     <p data-health-message role="status" class="access-message"></p><div data-health-rows></div><div class="rates-pager"><button type="button" data-health-prev>Previous</button><span data-health-page></span><button type="button" data-health-next>Next</button></div>
     <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><h3 id="health-title">Review site health</h3><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-site-link></div><div data-health-accounts></div><div data-health-issues></div><div data-health-detail></div></dialog>`;
   const $ = (s) => root.querySelector(s),
     dialog = $("dialog");
+  const models = mountHealthModels($('[data-health-models]'), call);
   const message = (text) => {
     if (alive) $("[data-health-message]").textContent = text;
   };
@@ -264,6 +266,7 @@ export function mountSiteHealth(root, call) {
       clearInterval(timer);
       ++generation;
       keys.clear();
+      models.destroy();
       connectedAccounts?.destroy();
       dialog.close();
       root.removeEventListener("click", click);
