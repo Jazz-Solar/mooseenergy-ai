@@ -1,0 +1,18 @@
+.models-section { margin:24px 0 36px; padding:20px; border:1px solid #3f3f46; border-radius:14px; background:#151517; min-width:0; }
+.models-heading,.models-caption { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.models-heading h3 { margin:0; font-size:19px; }.models-heading>span { color:#f2c66d; font-size:12px; }
+.models-section p,.models-caption span { color:#b6b6c0; line-height:1.6; font-size:13px; }.models-section>p { margin:8px 0; }
+.models-section .rates-toolbar>div { min-width:0; }.models-section .rates-toolbar select { max-width:100%; }
+.models-section .rates-toolbar button { font-size:12px; }.models-section [data-model-latest] { background:#27272a; color:#eeeef2; border:1px solid #52525b; }
+.models-freshness { padding:10px 12px; border-radius:8px; background:#202024; }.models-freshness.delayed { background:#3b2d15; color:#f5cf89; }
+.models-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:16px 0 22px; }
+.model-card { border:1px solid #35353c; border-radius:10px; padding:18px; background:#1a1a1e; min-width:0; }.model-card h4 { margin:0; font-size:16px; }.model-card p { margin:6px 0 14px; }
+.model-value { display:block; font-size:30px; line-height:1.4; font-variant-numeric:tabular-nums; }.model-card>span { display:block; color:#c9c9d1; font-size:12px; }
+.model-card dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:20px 0 14px; }.model-card dt { color:#b2b2bd; font-size:12px; }.model-card dd { margin:5px 0 0; font-size:15px; }
+.model-card small,.models-table small { display:block; color:#b6b6c0; font-size:12px; line-height:1.6; margin-top:6px; }.model-device { overflow-wrap:anywhere; max-width:280px; font-weight:400; }
+.models-table { min-width:780px; }.models-table caption { text-align:left; padding:12px 0; color:#d8d8df; font-size:13px; }.models-table th[scope=row] { font-weight:500; color:#eeeef2; }
+.models-table th:last-child,.models-table td:last-child { position:static; width:auto; border-left:0; }.models-table th[scope=row] { text-transform:none; letter-spacing:normal; }.models-scroll-hint { display:none; }
+.model-badge { display:inline-block; padding:5px 8px; border-radius:6px; font-size:12px; white-space:nowrap; }.model-badge.green { background:#153b29; color:#a1e4b6; }.model-badge.yellow,.model-badge.review { background:#463515; color:#f8d889; }.model-badge.red { background:#47232a; color:#ffb4bf; }.model-badge.unknown { background:#303038; color:#c5c5d1; }
+.models-help { border-top:1px solid #35353c; margin-top:18px; padding-top:8px; }.models-help summary { cursor:pointer; padding:12px 0; font-size:13px; color:#dddde4; }.models-help p { max-width:900px; }
+.models-section [data-model-message] { color:#e5c98e; overflow-wrap:anywhere; }
+@media(max-width:700px) { .models-section { padding:14px; }.models-columns { grid-template-columns:1fr; }.models-section .rates-toolbar>div { width:100%; flex:auto; }.models-section .rates-toolbar button { width:100%; }.model-card { padding:15px; }.models-scroll-hint { display:block; } }
