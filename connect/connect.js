@@ -22,7 +22,12 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
    node('p','Sign in to the manufacturer portal and approve access. You will return here to finish connecting the site.',root);
    button(r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
  }
- if(r.status==='pending_verification')node('p','The portal step is recorded. Staff must verify the authorized sites before any site can be attached. You can safely close this page and return later.',root);
+ if(r.status==='pending_verification'){
+  if(r.canConnect&&r.verificationMethod==='enphase'){
+   node('p','Confirm your Enphase access to show the sites you can connect.',root);
+   button('Verify Enphase access',root,async()=>{const result=await call({action:'verifyEnphase',requestId:r.id});const url=new URL(result.authorizeUrl);if(url.username||url.password||url.origin!=='https://api.enphaseenergy.com'||url.pathname!=='/oauth/authorize'||url.searchParams.get('response_type')!=='code')throw Error('Invalid verification URL');location.assign(url.href);},false);
+  }else node('p','The portal step is recorded. The authorized sites must be verified before a site can be attached. You can safely close this page and return later.',root);
+ }
  if(!r.canConnect)node('p',r.isOwner?`This request is assigned to ${r.technicianEmail||'the JAZZ team'}. The technician can use this same link to complete it.`:'You can review this request, but only its assigned portal user can complete the portal connection and site selection.',root);
  if(r.canConnect&&r.status==='needs_selection'){
   node('p','Choose only the site requested by the owner. Suggestions compare names and available addresses within the verified portal; check the site ID and location before confirming.',root);
@@ -32,7 +37,7 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
   for(const site of ordered){const card=node('div',null,list,'site'),label=node('label',null,card),radio=node('input',null,label);radio.type='radio';radio.name='site';radio.value=site.id;radio.addEventListener('change',()=>{selected=site.id;});node('span',site.name,label);node('small',site.id,card);const address=['street','city','state','zipCode','country'].map(k=>site.address?.[k]).filter(Boolean).join(', ');if(address)node('small',address,card);if(site.latitude!==null&&site.longitude!==null)node('small',`${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`,card);if(suggestions.has(site.id))node('small','Suggested match — confirm before connecting',card);}
   button('Connect the selected site',root,async()=>{if(!selected){const e=Error('Select a site');e.safeMessage='Choose the intended site first.';throw e;}await call({action:'select',requestId:r.id,siteId:selected});await show(r.id);},false);
  }
- if(isAdmin&&r.status==='pending_verification'){
+ if(isAdmin&&r.status==='pending_verification'&&r.verificationMethod!=='enphase'){
   node('hr',null,root);node('h3','Staff access verification',root);node('p','Record only sites whose access is verified for this request and portal user. For an owner portal, verify the complete authorized list. A matching name, address, or successful redirect is insufficient.',root);
   const idsLabel=node('label','Verified site IDs (one per line)',root);idsLabel.htmlFor='verified-ids';const ids=node('textarea',null,root);ids.id='verified-ids';ids.maxLength=13000;
   const evidenceLabel=node('label','Verification evidence and reference',root);evidenceLabel.htmlFor='verification-evidence';const evidence=node('textarea',null,root);evidence.id='verification-evidence';evidence.maxLength=2000;
