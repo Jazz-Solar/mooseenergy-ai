@@ -2,6 +2,7 @@ const pages = [
   ['overview','Overview','M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z'],
   ['sites','Sites','M3 20h18 M5 16V9l7-5 7 5v7 M9 20v-7h6v7'],
   ['people','People & access','M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3 M13 3a4 4 0 0 1 0 8 M22 21v-3a4 4 0 0 0-3-4 M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8'],
+  ['pilot','Pilot','M4 21V3 M4 4h14l-3 4 3 4H4'],
   ['feedback','Feedback','M3 4h18v13H8l-5 4z M7 8h10 M7 12h7'],
 ];
 export const groups = {
