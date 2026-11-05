@@ -30,11 +30,16 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
  }
  if(!r.canConnect)node('p',r.isOwner?`This request is assigned to ${r.technicianEmail||'the JAZZ team'}. The technician can use this same link to complete it.`:'You can review this request, but only its assigned portal user can complete the portal connection and site selection.',root);
  if(r.canConnect&&r.status==='needs_selection'){
-  node('p','Choose only the site requested by the owner. Suggestions compare names and available addresses within the verified portal; check the site ID and location before confirming.',root);
+  node('p','Check the site ID and address, then confirm the site requested by the owner.',root);
   const suggestions=new Map((r.candidates||[]).map(c=>[c.systemId,c]));
-  const list=node('fieldset',null,root);node('legend','Verified portal sites',list);
   let selected=null;const ordered=[...(r.sites||[])].sort((a,b)=>(suggestions.get(b.id)?.matchScore||0)-(suggestions.get(a.id)?.matchScore||0));
-  for(const site of ordered){const card=node('div',null,list,'site'),label=node('label',null,card),radio=node('input',null,label);radio.type='radio';radio.name='site';radio.value=site.id;radio.addEventListener('change',()=>{selected=site.id;});node('span',site.name,label);node('small',site.id,card);const address=['street','city','state','zipCode','country'].map(k=>site.address?.[k]).filter(Boolean).join(', ');if(address)node('small',address,card);if(site.latitude!==null&&site.longitude!==null)node('small',`${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`,card);if(suggestions.has(site.id))node('small','Suggested match — confirm before connecting',card);}
+  const recommended=ordered.filter(site=>suggestions.has(site.id)).slice(0,3),recommendedIds=new Set(recommended.map(site=>site.id));
+  const remaining=ordered.filter(site=>!recommendedIds.has(site.id));
+  const list=node('fieldset',null,root);node('legend',recommended.length?'Recommended sites':'Choose a site',list);
+  const addSite=(site,parent)=>{const card=node('div',null,parent,'site'),label=node('label',null,card),radio=node('input',null,label);radio.type='radio';radio.name='site';radio.value=site.id;radio.addEventListener('change',()=>{selected=site.id;});node('span',site.name,label);node('small',site.id,card);const address=['street','city','state','zipCode','country'].map(k=>site.address?.[k]).filter(Boolean).join(', ');if(address)node('small',address,card);if(Number.isFinite(site.latitude)&&Number.isFinite(site.longitude))node('small',`${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`,card);};
+  for(const site of recommended)addSite(site,list);
+  if(!recommended.length)node('p','No recommended match. Expand all sites to choose one.',list);
+  if(remaining.length){const more=node('details',null,list,'other-sites');node('summary',`${recommended.length?'All other sites':'All sites'} (${remaining.length})`,more);for(const site of remaining)addSite(site,more);}
   button('Connect the selected site',root,async()=>{if(!selected){const e=Error('Select a site');e.safeMessage='Choose the intended site first.';throw e;}await call({action:'select',requestId:r.id,siteId:selected});await show(r.id);},false);
  }
  if(isAdmin&&r.status==='pending_verification'&&r.verificationMethod!=='enphase'){
