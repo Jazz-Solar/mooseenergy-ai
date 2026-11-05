@@ -46,7 +46,7 @@ export function mountSiteAccess(root, call, initial) {
   const suggestions = new WeakMap();
   let hintCatalog = null;
   const retryKeys = new Map();
-  root.innerHTML = `<h2 class="access-heading">Site access</h2><p class="access-intro">Review what the customer submitted, then verify or deny their request.</p>
+  root.innerHTML = `<p class="access-intro" data-access-intro></p>
     <nav class="access-tabs" aria-label="Site access workspaces">${[['reviews','Requests'],['mappings','Assignments'],['assignments','Active access'],['history','History']].map(([v,l])=>`<button data-view="${v}" aria-pressed="${v===view}">${l}</button>`).join('')}</nav>
     <form class="access-toolbar" id="access-search"><div><label for="access-query">Search request ID, customer, site or address</label><input id="access-query" name="search" type="search" maxlength="200"></div><div><label for="access-filter">Status</label><select id="access-filter" name="status"></select></div><button>Search / refresh</button></form>
     <p role="status" aria-live="polite" class="access-message" id="access-message"></p>
@@ -145,6 +145,7 @@ export function mountSiteAccess(root, call, initial) {
   function historyDetail(r) { return `<article class="access-card"><h3>${e(r.action)}</h3><p>${e(r.reason)}</p><p>By ${e(r.reviewer_name)} · ${e(date(r.created_at))}</p><pre>${e(JSON.stringify({before:r.before_record,after:r.after_record},null,2))}</pre></article>`; }
 
   function filters() {
+    root.querySelector('[data-access-intro]').textContent = ({reviews:'Review customer connection requests',mappings:'Manage customer-to-site assignments',assignments:'Accounts with site access',history:'Access decisions and changes'})[view];
     const values = view==='reviews' ? ['pending','review','connected','revoked'] : view==='mappings' ? ['pending','verified','connected','reverify','revoked'] : view==='assignments' ? ['pending','connected','revoked'] : [];
     $('access-filter').innerHTML = '<option value="">All statuses</option>'+values.map(v=>`<option>${v}</option>`).join('');
     $('access-filter').disabled = view==='history';

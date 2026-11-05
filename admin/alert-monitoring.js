@@ -28,8 +28,8 @@ export function alertTiming(row) {
 
 export function mountAlertMonitoring(root, call) {
   let alive = true, generation = 0, offset = 0, next = null, loading = false, accountPanels = [];
-  root.innerHTML = `<div class="alerts-heading"><div><h2>Alert monitoring</h2><p>See which sites are being checked, approaching 48 hours, or receiving daily reminders.</p></div><span class="alerts-live">Hourly daylight checks</span></div>
-    <div class="alerts-policy"><strong>48 hours to qualify · at least 24 hours between emails</strong><p>Jon, monitoring and Glani receive ongoing-incident alerts until recovery. Nighttime does not count as underproduction. Existing issues can carry a separately reviewed historical qualification.</p><p data-alert-enrollment></p></div>
+  const expandedRows = new Set();
+  root.innerHTML = `<div class="section-intro"><p>Monitoring and notification status</p><details class="alerts-policy"><summary>Alert timing</summary><strong>48 hours to qualify · at least 24 hours between emails</strong><p>Only enabled recipients receive ongoing-incident alerts. Nighttime does not count as underproduction.</p><p data-alert-enrollment></p></details></div>
     <div class="alerts-summary" aria-label="Monitoring summary" data-alert-summary></div>
     <form class="rates-toolbar" data-alert-filter><div><label for="alert-search">Search sites</label><input id="alert-search" type="search" maxlength="200" placeholder="Site name"></div><div><label for="alert-state">Monitoring status</label><select id="alert-state"><option value="">All sites</option>${Object.entries(alertStates).map(([value,label]) => `<option value="${value}">${label}</option>`).join('')}</select></div><button>Refresh monitoring</button></form>
     <p data-alert-message role="status" class="access-message"></p><p data-alert-updated class="alerts-updated"></p><div data-alert-rows></div>
@@ -44,7 +44,7 @@ export function mountAlertMonitoring(root, call) {
     $('[data-alert-enrollment]').textContent = data.policy.automaticEnrollment
       ? 'New connected sites enroll automatically. Any missing setup appears here.' : 'Automatic enrollment is paused. New sites need attention.';
     $('[data-alert-updated]').textContent = `Updated ${date(data.generatedAt)} · Times shown in your local timezone · Refreshes every minute while open`;
-    $('[data-alert-rows]').innerHTML = data.items.length ? data.items.map(row => `<article class="alerts-site">
+    $('[data-alert-rows]').innerHTML = data.items.length ? `<div class="access-table-scroll" role="region" aria-label="Site alerts table" tabindex="0"><table class="access-table alerts-table"><thead><tr><th>Site</th><th>Status</th><th>Affected</th><th>Last checked</th><th>Next check</th><th></th></tr></thead><tbody>` + data.items.map((row,index) => `<tr><td><strong>${e(row.siteName)}</strong></td><td><span class="alerts-badge ${e(row.state)}">${e(alertStates[row.state] || 'Unavailable')}</span></td><td>${row.devices.length} inverter${row.devices.length===1?'':'s'}</td><td>${e(date(row.lastCheckedAt))}</td><td>${e(row.nextCheckAt ? date(row.nextCheckAt) : row.enrolled ? 'Next daylight window' : 'Awaiting setup')}</td><td><button type="button" data-alert-expand="${e(row.systemId)}" aria-expanded="${expandedRows.has(row.systemId)}" aria-controls="alert-detail-${index}" aria-label="Details for ${e(row.siteName)}">Details</button></td></tr><tr id="alert-detail-${index}" data-alert-detail="${e(row.systemId)}" ${expandedRows.has(row.systemId)?'':'hidden'}><td colspan="6"><article class="alerts-site">
       <div class="alerts-site-title"><h3>${e(row.siteName)}</h3><span class="alerts-badge ${e(row.state)}">${e(alertStates[row.state] || 'Unavailable')}</span></div>
       ${providerSiteLink(row.systemId, row.siteName)}
       <p class="alerts-timing">${e(alertTiming(row))}</p>
@@ -57,7 +57,7 @@ export function mountAlertMonitoring(root, call) {
       <details data-alert-site="${e(row.systemId)}" ${expanded.has(row.systemId) ? 'open' : ''}><summary>Notification history and recipients</summary>
         <div class="alerts-recipients">${row.recipients.map(recipient => `<div><strong>${e(recipient.email)}</strong><span>Last sent: ${e(date(recipient.lastSentAt))}</span><span>${recipient.queued ? 'Queued for delivery' : recipient.nextAllowedAt ? `Next email no earlier than ${e(date(recipient.nextAllowedAt))}` : 'First email after qualification and a fresh check'}</span>${recipient.uncertain ? '<span class="alerts-note">A delivery outcome needs verification; the daily limit still applies.</span>' : ''}</div>`).join('') || '<p>No operations recipients are enabled.</p>'}</div>
         <p class="alerts-note">One email per ongoing incident and recipient in any rolling 24 hours. A qualifying reading is checked again before sending. Missing readings can delay delivery.</p>
-      </details></article>`).join('') : '<div class="access-empty">No sites match this view.</div>';
+      </details></article></td></tr>`).join('') + '</tbody></table></div>' : '<div class="access-empty">No sites match this view.</div>';
     accountPanels = [...root.querySelectorAll('[data-connected-site]')].map(node => mountConnectedAccounts(node, call, node.dataset.connectedSite, expandedAccounts.has(node.dataset.connectedSite)));
     $('[data-alert-page]').textContent = data.items.length ? `${offset + 1}–${offset + data.items.length} of ${data.total} sites` : 'No sites';
     $('[data-alert-prev]').disabled = offset === 0;
@@ -90,7 +90,12 @@ export function mountAlertMonitoring(root, call) {
   function click(event) {
     const button = event.target.closest('button');
     if (!button) return;
-    if (button.hasAttribute('data-alert-status')) { $('#alert-state').value = button.dataset.alertStatus;offset = 0;void load(); }
+    if (button.hasAttribute('data-alert-expand')) {
+      const id=button.dataset.alertExpand,open=!expandedRows.has(id);
+      if(open)expandedRows.add(id);else expandedRows.delete(id);
+      button.setAttribute('aria-expanded',String(open));document.getElementById(button.getAttribute('aria-controls')).hidden=!open;
+    }
+    else if (button.hasAttribute('data-alert-status')) { $('#alert-state').value = button.dataset.alertStatus;offset = 0;void load(); }
     else if (button.hasAttribute('data-alert-prev')) { offset = Math.max(0, offset - 50);void load(); }
     else if (button.hasAttribute('data-alert-next') && next != null) { offset = next;void load(); }
   }
