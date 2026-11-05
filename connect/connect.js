@@ -20,7 +20,7 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
  if(r.status==='cancelled'){node('p','The owner cancelled this request.',root);return;}
  if(r.canConnect&&['awaiting_portal','authorizing','denied'].includes(r.status)){
    node('p','Sign in to the manufacturer portal and approve access. You will return here to finish connecting the site.',root);
-   button(r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
+   button(r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':r.provider==='enphase'?url.origin==='https://api.enphaseenergy.com'&&url.pathname==='/oauth/authorize'&&url.searchParams.get('response_type')==='code':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
  }
  if(r.status==='pending_verification'){
   if(r.canConnect&&r.verificationMethod==='enphase'){
