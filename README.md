@@ -156,4 +156,4 @@ sign-in and permissions continue to apply. No backend migration is needed.
 
 ### Pilot contacts
 
-Pilot is a staff-only, read-only contact shortlist with priority sorting, search, provider/review filters, pagination, and full contact/site details. It loads through the protected admin endpoint on navigation; contact data stays in private backend storage and is cleared on sign-out. Run `npm run test:pilot:browser` for mobile and desktop coverage.
+Pilot is a staff-only outreach tracker with editable priorities, team assignments, outreach status and notes. Account creation is matched automatically to current Auth emails; invitations, unverified signups and ambiguous matches remain explicit. Sort/filter by priority, assignee, status or provider, and open the audit history from contact details. It loads through the protected admin endpoint on navigation; contact data stays in private backend storage and is cleared on sign-out. Run `npm run test:pilot:browser` for mobile and desktop coverage.
