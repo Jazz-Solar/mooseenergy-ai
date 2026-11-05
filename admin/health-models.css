@@ -16,3 +16,14 @@
 .models-help { border-top:1px solid #35353c; margin-top:18px; padding-top:8px; }.models-help summary { cursor:pointer; padding:12px 0; font-size:13px; color:#dddde4; }.models-help p { max-width:900px; }
 .models-section [data-model-message] { color:#e5c98e; overflow-wrap:anywhere; }
 @media(max-width:700px) { .models-section { padding:14px; }.models-columns { grid-template-columns:1fr; }.models-section .rates-toolbar>div { width:100%; flex:auto; }.models-section .rates-toolbar button { width:100%; }.model-card { padding:15px; }.models-scroll-hint { display:block; } }
+.models-section { margin:16px 0 24px; padding:20px; border-color:var(--line); background:#18191d; }
+.models-heading h3 { font-size:16px; font-weight:550; }.models-heading { margin-bottom:10px; }
+.models-columns { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.model-card { padding:16px; background:#202126; border-color:#35383f; }.model-card h4 { font-size:13px; font-weight:550; }.model-card p { font-size:12px; margin:12px 0; }.model-card small { font-size:11px; }
+.model-outcome { display:block; font-size:24px; font-weight:550; letter-spacing:-.5px; margin-top:14px; }.model-outcome.flagged { color:#f2c66d; }.model-outcome.clear { color:#9bc9b4; }.model-outcome.uncertain,.model-outcome.unavailable { color:#b5b8c3; }
+.model-verdict { display:flex; gap:12px; justify-content:space-between; margin-top:18px; font-size:13px; }.model-verdict span { color:#aaaeb9; font-size:12px; }
+.model-energy { display:flex; gap:24px; align-items:center; flex-wrap:wrap; padding:14px 0; border-top:1px solid #35383f; font-size:13px; }.model-energy>span { color:#aeb1bb; font-size:12px; }.model-energy strong { font-weight:500; font-variant-numeric:tabular-nums; }.model-energy small { display:block; font-size:11px; font-weight:400; color:#aeb1bb; }
+.models-freshness { font-size:12px!important; }.models-freshness.delayed { background:#e6b65b0d; color:#cdb98f; }
+.model-inverters { margin-top:18px; }.model-inverters summary,.models-help summary { font-size:12px; min-height:44px; padding:12px 0; cursor:pointer; }.models-help { margin-top:0; }
+.model-card .model-badge { white-space:normal; }.models-caption { font-size:13px; }.models-caption span { font-size:12px; }
+@media(max-width:700px) { .models-section { padding:14px; }.models-columns { grid-template-columns:1fr; }.model-card { display:grid; grid-template-columns:1fr auto; gap:6px 12px; }.model-card h4 { align-self:center; }.model-outcome { font-size:21px; margin:0; }.model-card p,.model-card small { grid-column:1/-1; margin:0; }.model-verdict { flex-direction:column; gap:4px; }.model-energy { gap:16px; }.model-energy>span:last-child { flex-basis:100%; } }

@@ -20,7 +20,7 @@ this website. Website releases merge `dev` into `main` and use GitHub Pages.
 | Path | What it is |
 |---|---|
 | `index.html` | The main site (product, team, First Nations partnerships) |
-| `admin.html` + `admin/` | **Staff admin portal** — user roster, login activity, feedback feed, onboarding pipeline. Sign-in gated server-side to Moose staff accounts; safe to be in a public repo because all data access happens through an authenticated Supabase edge function |
+| `admin.html` + `admin/` | **Staff admin portal** — overview trends, Sites, People & access, and feedback. Sign-in gated server-side to Moose staff accounts; safe to be in a public repo because all data access happens through an authenticated Supabase edge function |
 | `app/` | Redirect page for the Android APK download (`mooseenergy.ai/app`) |
 | `news.html` | News/announcements |
 | `register.html` | Interest / registration page |
@@ -55,11 +55,30 @@ functions. Staff sign-in and the intended workflows still need verification for
 each rollout. The mobile staff link checks `admin/portal-contract.json` before
 opening the environment-aware portal.
 
-The current production backend does not supply the legacy onboarding pipeline or
-aggregate HubSpot summary, and `admin-pipeline` returns 404. The portal marks these
-as unavailable and disables planned-user editing when `admin-stats` omits
-`planned`; Requests, Assignments, FIT rates, and per-feedback delivery status
-remain available. Restoring the legacy editor requires a backend release.
+The admin navigation contains Overview, Sites, People & access, and Feedback.
+Sites uses Health, Alerts, and FIT rates tabs. People & access combines Users,
+Requests, Assignments, Active access, and History. Legacy section URLs continue
+to work; the removed Onboarding route returns to Overview.
+
+Overview requires the companion `admin-stats` update before publication. It counts
+canonical systems once, reads all account/system pages, and supplies 90 days of
+registration growth. Charts describe records still present, grouped by their
+creation date in UTC; they are not historical active-user or connected-site
+snapshots. Missing dates leave the trend unavailable. Login/feedback counts retain
+their bounded windows.
+
+Digital Twin and both GCP detectors present the same site/day investigation outcome.
+Twin uses site energy below 70% of expected; each GCP detector marks the site when
+any mapped inverter is yellow/red. A no-flag result requires full inverter coverage.
+This compares outcomes, not equivalent percentages or model accuracy. Monitoring
+and per-inverter GCP scores remain separate evidence. Health reviews include the
+same comparison locked to the reviewed site, only for registered GCP sites; the
+selected completed day is always visible and never substituted for incident time.
+Model flags do not change incidents or send notifications.
+
+Run `npm run test:admin:browser` for charts, keyboard tabs, legacy URLs, supported
+and unsupported review sites, mobile overflow, and sign-out clearing. Browser
+journeys use synthetic fixtures, not live acceptance data.
 
 ## Temporary local production presentation
 
@@ -89,7 +108,7 @@ call production functions because production excludes local origins from CORS.
 ## Backend and publication
 
 - **`CNAME` must survive every commit** — Pages reads the custom domain from it.
-- The admin portal calls the `admin-stats` / `admin-pipeline` Supabase edge
+- The admin portal calls the `admin-stats` / `staff-site-access` Supabase edge
   functions in the Moose app project (`Jazz-Solar/Mooose` repo). Changing those
   APIs means updating `admin/` here too.
 - No secrets belong in this repo, ever — it is public and serves as-is.

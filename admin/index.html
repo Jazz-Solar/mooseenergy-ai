@@ -68,9 +68,9 @@
     @media (max-width:640px){ .hide-sm { display:none; } .pf { grid-template-columns:1fr; } }
   </style>
   <link rel="stylesheet" href="./site-access.css?v=20260915-review-hints-1" />
-  <link rel="stylesheet" href="./admin.css?v=20261009-site-context-1" />
-  <link rel="stylesheet" href="./alert-monitoring.css?v=20261008-1" />
-  <link rel="stylesheet" href="./health-models.css?v=20261030-1" />
+  <link rel="stylesheet" href="./admin.css?v=20261105-1" />
+  <link rel="stylesheet" href="./alert-monitoring.css?v=20261105-1" />
+  <link rel="stylesheet" href="./health-models.css?v=20261105-1" />
 </head>
 <body class="admin-app">
   <aside class="admin-sidebar" id="admin-sidebar" hidden aria-label="Admin sidebar">
@@ -100,63 +100,18 @@
       <div class="error" role="alert" id="err"></div>
     </div>
 
+    <nav id="admin-tabs" class="admin-tabs" role="tablist" hidden></nav>
     <div id="dash" style="display:none">
       <section id="site-access" data-admin-section="access" hidden></section>
       <section id="site-health" data-admin-section="health" class="admin-page" hidden></section>
       <section id="alert-monitoring" data-admin-section="alerts" class="admin-page" hidden></section>
       <section id="site-rates" data-admin-section="rates" class="admin-page" hidden></section>
       <section data-admin-section="overview" class="admin-page" hidden>
-      <h2>Staff overview</h2><p>Account activity and service health at a glance.</p>
-      <div class="tiles" id="tiles"></div>
-
-      <!-- HubSpot pipeline health -->
-      <div class="hbar" id="hbar"></div>
+      <div id="overview-content"></div>
 
       </section>
-      <section data-admin-section="pipeline" class="admin-page" hidden>
-      <!-- Onboarding pipeline -->
-      <div class="h2row">
-        <h2>ONBOARDING PIPELINE</h2>
-        <button class="btn-add" id="pAdd" disabled>+ Add planned user</button>
-      </div>
-
-      <div class="card" id="pForm" style="display:none">
-        <input type="hidden" id="pId" />
-        <div class="pf">
-          <div><label>NAME</label><input id="pName" placeholder="Contact person" /></div>
-          <div><label>COMMUNITY / ORG</label><input id="pOrg" placeholder="e.g. Batchewana FN" /></div>
-          <div><label>EMAIL <span class="dimmer">(for auto-match)</span></label><input id="pEmail" type="email" placeholder="optional" /></div>
-          <div><label>PLANNED SYSTEM(S) · NO ACCESS GRANTED</label><input id="pSystems" placeholder="e.g. 2 × 30 kWp Fronius" /></div>
-          <div><label>TARGET DATE</label><input id="pDate" type="date" /></div>
-          <div><label>STATUS</label>
-            <select id="pStatus">
-              <option value="lead">Lead</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="in_progress">In progress</option>
-              <option value="onboarded">Onboarded</option>
-              <option value="stalled">Stalled</option>
-            </select>
-          </div>
-          <div><label>OWNER</label><input id="pOwner" placeholder="Who owns this relationship" /></div>
-          <div class="full"><label>NOTES</label><textarea id="pNotes" placeholder="Context, blockers, next step…"></textarea></div>
-        </div>
-        <div class="rowbtns" style="margin-top:14px">
-          <button class="btn-sm" id="pCancel">Cancel</button>
-          <button class="btn-add" id="pSave">Save</button>
-        </div>
-        <div class="error" id="pErr"></div>
-      </div>
-
-      <div class="card scroll" style="padding:6px 10px">
-        <table id="pipeline"><thead><tr>
-          <th>WHO</th><th class="hide-sm">SYSTEM(S)</th><th>TARGET</th><th>STATUS</th>
-          <th class="hide-sm">OWNER</th><th class="right"></th>
-        </tr></thead><tbody></tbody></table>
-      </div>
-
-      </section>
-      <section data-admin-section="users" class="admin-page" hidden>
-      <h2>Users <span class="dimmer">(click a row to see their feedback)</span></h2>
+      <section id="people-users" data-admin-section="users" class="admin-page" hidden>
+      <h2>Users</h2>
       <div class="card scroll" style="padding:6px 10px">
         <table id="users"><thead><tr>
           <th>USER</th><th>ROLE</th><th class="hide-sm">SYSTEMS</th>
@@ -170,7 +125,7 @@
 
       </section>
       <section data-admin-section="feedback" class="admin-page" hidden>
-      <h2>Feedback <span class="dimmer">(everything, including failed HubSpot deliveries)</span></h2>
+      <h2>Feedback</h2>
       <div class="card scroll" style="padding:6px 10px">
         <table id="fb"><thead><tr>
           <th>WHEN</th><th>WHO</th><th>TYPE</th><th>MESSAGE</th><th>HUBSPOT</th>
@@ -184,11 +139,12 @@
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.106.2';
     import { selectEnvironment } from './environments.js?v=20260915-production-1';
     import { functionEndpoint } from './function-endpoint.js';
-    import { mountSiteAccess } from './site-access.js?v=20260915-review-hints-1';
-    import { mountSiteHealth } from './site-health.js?v=20261030-1';
-    import { mountAlertMonitoring } from './alert-monitoring.js?v=20261009-site-context-1';
-    import { mountSiteRates } from './site-rates.js?v=20260914-fit-rates-1';
-    import { mountAdminShell } from './admin-shell.js?v=20261008-alerts-1';
+    import { mountSiteAccess } from './site-access.js?v=20261105-1';
+    import { mountSiteHealth } from './site-health.js?v=20261105-1';
+    import { mountAlertMonitoring } from './alert-monitoring.js?v=20261105-1';
+    import { mountSiteRates } from './site-rates.js?v=20261105-1';
+    import { mountAdminShell } from './admin-shell.js?v=20261105-1';
+    import { mountOverview } from './overview.js?v=20261105-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search, location.hostname);
     const localProxy = !!document.querySelector('meta[name="moose-local-proxy"]');
@@ -198,8 +154,7 @@
       storageKey: environment.storageKey, detectSessionInUrl: false,
     }});
     const boundary = createSessionBoundary();
-    let workspace = null, rates = null, health = null, alerts = null;
-    const pageNames = {overview:'Overview',health:'Site health',alerts:'Alert monitoring',rates:'Sites & FIT rates',reviews:'Requests',mappings:'Assignments',assignments:'Active access',history:'Access history',pipeline:'Onboarding',users:'Users',feedback:'Feedback'};
+    let workspace = null, rates = null, health = null, alerts = null, overview = null;
     const shell = mountAdminShell(page => {
       if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false) return false;
       const access = ['reviews','mappings','assignments','history'].includes(page);
@@ -208,7 +163,6 @@
         else document.querySelector(`#site-access [data-view="${page}"]`)?.click();
       }
       document.querySelectorAll('[data-admin-section]').forEach(section => section.hidden = section.dataset.adminSection !== (access ? 'access' : page));
-      document.getElementById('admin-page-title').textContent = pageNames[page];
       if (page === 'alerts') void alerts?.refresh();
       return true;
     });
@@ -226,7 +180,6 @@
     const fmtD = (iso) => iso ? new Date(iso).toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : '—';
     const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }) : '—';
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const STATUS_LABEL = { lead:'Lead', scheduled:'Scheduled', in_progress:'In progress', onboarded:'Onboarded', stalled:'Stalled' };
 
     let DATA = null;
 
@@ -237,15 +190,13 @@
       rates?.destroy(); rates = null; health?.destroy(); health = null; alerts?.destroy(); alerts = null; shell.reset();
       $('site-rates').replaceChildren(); $('site-health').replaceChildren();
       $('site-access').replaceChildren();
-      for (const id of ['tiles','hbar','drawer']) $(id).replaceChildren();
-      for (const id of ['users','fb','pipeline']) $(id).querySelector('tbody').replaceChildren();
+      overview?.destroy(); overview = null; $('drawer').replaceChildren();
+      for (const id of ['users','fb']) $(id).querySelector('tbody').replaceChildren();
       $('dash').style.display = 'none';
       $('login').style.display = 'block';
       $('signout').style.display = 'none';
       $('password').value = '';
-      for (const id of ['pId','pName','pOrg','pEmail','pSystems','pDate','pOwner','pNotes']) $(id).value='';
-      $('pForm').style.display='none';
-      $('pAdd').disabled = true;
+
     }
     async function callFn(name, payload) {
       const ticket = boundary.capture();
@@ -293,70 +244,11 @@
       $('dash').style.display = 'block';
       $('signout').style.display = 'block';
       shell.enable();
-      $('subtitle').textContent = `Signed in as ${session.user.email} · data as of ${fmt(d.generated_at)}`;
+      $('subtitle').textContent = session.user.email;
 
-      const activeToday = d.users.filter(u => u.last_sign_in_at && Date.now() - new Date(u.last_sign_in_at) < 864e5).length;
-      const openPipeline = Array.isArray(d.planned) ? d.planned.filter(p => p.status !== 'onboarded').length : '—';
-      $('tiles').innerHTML = [
-        [d.totals.users, 'USERS'],
-        [d.totals.systems, 'SYSTEMS'],
-        [activeToday, 'ACTIVE TODAY'],
-        [openPipeline, 'IN PIPELINE'],
-        [d.totals.feedback, 'RECENT FEEDBACK'],
-      ].map(([v, l]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join('');
-
-      renderHubSpot(d);
-      renderPipeline(d);
+      overview?.destroy(); overview = mountOverview($('overview-content'), d);
       renderUsers(d);
       renderFeedback(d.feedback);
-    }
-
-    function renderHubSpot(d) {
-      if (!d.hubspot) {
-        $('hbar').textContent = 'HubSpot delivery summary is unavailable. Check individual feedback entries for delivery status.';
-        return;
-      }
-      const h = d.hubspot ?? {};
-      const failed = h.failed_all_time ?? 0;
-      const delivered = (d.totals.feedback ?? 0) - failed;
-      // green: something delivered & nothing failed · amber: failures present · red: nothing ever delivered
-      let dot = 'var(--green)', word = 'Healthy';
-      if (d.totals.feedback === 0) { dot = 'var(--dimmer)'; word = 'No feedback yet'; }
-      else if (!h.last_delivered_at) { dot = 'var(--red)'; word = 'No deliveries'; }
-      else if (failed > 0) { dot = 'var(--amber)'; word = `${failed} not delivered`; }
-      $('hbar').innerHTML = `
-        <span><span class="hdot" style="background:${dot}"></span><b>HubSpot: ${word}</b></span>
-        <span><span class="hlabel">DELIVERED</span> ${delivered}</span>
-        <span><span class="hlabel">FAILED</span> <span class="${failed?'fail':'dim'}">${failed}</span></span>
-        <span><span class="hlabel">LAST TICKET</span> ${h.last_ticket ? esc(h.last_ticket) : '—'}</span>
-        <span><span class="hlabel">AT</span> ${fmt(h.last_delivered_at)}</span>`;
-    }
-
-    function renderPipeline(d) {
-      const available = Array.isArray(d.planned);
-      $('pAdd').disabled = !available;
-      if (!available) {
-        $('pForm').style.display = 'none';
-        $('pipeline').querySelector('tbody').innerHTML = '<tr><td colspan="6" class="dim">The onboarding pipeline is unavailable in this environment. Use Requests and Assignments to manage site access.</td></tr>';
-        return;
-      }
-      const rows = d.planned;
-      $('pipeline').querySelector('tbody').innerHTML = rows.length ? rows.map(p => `
-        <tr>
-          <td><b>${esc(p.name)}</b>${p.signed_up ? '<span class="match">✓ SIGNED UP</span>' : ''}
-            <br><span class="dimmer">${esc(p.org) || ''}${p.email ? ' · ' + esc(p.email) : ''}</span></td>
-          <td class="hide-sm dim">${esc(p.planned_systems) || '—'}</td>
-          <td class="dim">${fmtDate(p.target_date)}</td>
-          <td><span class="pill ${esc(p.status)}">${STATUS_LABEL[p.status] || esc(p.status)}</span></td>
-          <td class="hide-sm dim">${esc(p.owner) || '—'}</td>
-          <td class="right"><div class="rowbtns">
-            <button class="btn-sm" data-edit="${p.id}">Edit</button>
-            <button class="btn-sm danger" data-del="${p.id}">Delete</button>
-          </div></td>
-        </tr>`).join('') : '<tr><td colspan="6" class="dim">No planned users yet — add your onboarding pipeline above.</td></tr>';
-
-      $('pipeline').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openForm(rows.find(r => r.id === b.dataset.edit)));
-      $('pipeline').querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteRow(b.dataset.del, rows.find(r => r.id === b.dataset.del)?.name));
     }
 
     function renderUsers(d) {
@@ -408,53 +300,6 @@
             <td>${f.hubspot_ok ? `<span class="ok">✓ ${esc(f.ticket)}</span>` : '<span class="fail">✗ not delivered</span>'}</td>
           </tr>`).join('')
         : '<tr><td colspan="5" class="dim">No feedback yet.</td></tr>';
-    }
-
-    // ---- pipeline add/edit/delete ----
-    function openForm(row) {
-      if (!Array.isArray(DATA?.planned)) return;
-      $('pErr').textContent = '';
-      $('pId').value = row?.id ?? '';
-      $('pName').value = row?.name ?? '';
-      $('pOrg').value = row?.org ?? '';
-      $('pEmail').value = row?.email ?? '';
-      $('pSystems').value = row?.planned_systems ?? '';
-      $('pDate').value = row?.target_date ?? '';
-      $('pStatus').value = row?.status ?? 'lead';
-      $('pOwner').value = row?.owner ?? '';
-      $('pNotes').value = row?.notes ?? '';
-      $('pForm').style.display = 'block';
-      $('pForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      $('pName').focus();
-    }
-    $('pAdd').onclick = () => openForm(null);
-    $('pCancel').onclick = () => { $('pForm').style.display = 'none'; };
-    $('pSave').onclick = async () => {
-      $('pErr').textContent = '';
-      const row = {
-        id: $('pId').value || undefined,
-        name: $('pName').value.trim(),
-        org: $('pOrg').value.trim(),
-        email: $('pEmail').value.trim(),
-        planned_systems: $('pSystems').value.trim(),
-        target_date: $('pDate').value,
-        status: $('pStatus').value,
-        owner: $('pOwner').value.trim(),
-        notes: $('pNotes').value.trim(),
-      };
-      if (!row.name) { $('pErr').textContent = 'Name is required.'; return; }
-      $('pSave').disabled = true; $('pSave').textContent = 'Saving…';
-      const res = await callFn('admin-pipeline', { action: 'upsert', row });
-      $('pSave').disabled = false; $('pSave').textContent = 'Save';
-      if (!res.ok) { $('pErr').textContent = res.error ?? 'Save failed.'; return; }
-      $('pForm').style.display = 'none';
-      await loadDash().catch(showError);
-    };
-    async function deleteRow(id, name) {
-      if (!confirm(`Remove "${name ?? 'this planned user'}" from the pipeline?`)) return;
-      const res = await callFn('admin-pipeline', { action: 'delete', id });
-      if (!res.ok) { alert(res.error ?? 'Delete failed.'); return; }
-      await loadDash().catch(showError);
     }
 
     $('signin').onclick = async () => {

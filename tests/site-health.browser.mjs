@@ -15,7 +15,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true});
-const stub=`export function createClient(){let session=null,cb=()=>{};return {auth:{getSession:async()=>({data:{session}}),onAuthStateChange:fn=>{cb=fn;return {data:{subscription:{unsubscribe(){}}}}},signInWithPassword:async({email})=>{session={user:{id:'admin',email},access_token:'fixture.admin.token'};cb('SIGNED_IN',session);return {data:{session},error:null}},signOut:async()=>{session=null;cb('SIGNED_OUT',null);return {error:null}}}};}`;
+const stub=`export function createClient(){let session=null,cb=()=>{};return {auth:{getSession:async()=>({data:{session}}),onAuthStateChange:fn=>{cb=fn;return {data:{subscription:{unsubscribe(){}}}}},signInWithPassword:async({email})=>{session={user:{id:'admin',email},access_token:'placeholder-admin-session'};cb('SIGNED_IN',session);return {data:{session},error:null}},signOut:async()=>{session=null;cb('SIGNED_OUT',null);return {error:null}}}};}`;
 const at=h=>new Date(Date.now()+h*3600e3).toISOString();
 const site={systemId:'f:ae636650-d4f3-47a1-9bd4-33f07387daa3',systemName:'LDML Community Elders Complex',status:'yellow',issueCount:11,sharedCount:1,privateCount:10,firstObservedAt:at(-123),latestObservedAt:at(-1),summaries:['Inverter down','Production below expected output']};
 const shared={id:'shared',systemId:'f:ae636650-d4f3-47a1-9bd4-33f07387daa3',systemName:site.systemName,scope:'site',status:'pending',revision:1,summary:'Inverter down',firstObservedAt:at(-120),latestObservedAt:at(-1),causes:[{kind:'inverter',deviceId:'17',name:'Inverter <17>',reason:'provider_offline'}],events:[]};
@@ -51,11 +51,11 @@ try {
   try {
    await page.goto(`http://127.0.0.1:${server.address().port}/admin/?environment=development`);
    await page.getByLabel('EMAIL',{exact:true}).fill('admin@example.invalid');await page.getByLabel('PASSWORD',{exact:true}).fill('fixture');
-   await page.getByRole('button',{name:'Sign In',exact:true}).click();await page.getByRole('heading',{name:'Staff overview'}).waitFor();
+   await page.getByRole('button',{name:'Sign In',exact:true}).click();await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
    if(label==='mobile')await page.getByRole('button',{name:'Menu',exact:true}).click();
-   await page.getByRole('navigation',{name:'Admin navigation'}).getByRole('button',{name:'Site health',exact:true}).click();
+   await page.getByRole('navigation',{name:'Admin navigation'}).getByRole('button',{name:'Sites',exact:true}).click();
    const review=()=>page.getByRole('button',{name:'Review health for '+site.systemName});await review().waitFor();
-   assert.equal(await page.locator('[data-health-rows] tbody tr').count(),1);await page.getByText('11 issues · 1 shared · 10 account',{exact:true}).waitFor();
+   assert.equal(await page.locator('[data-health-rows] tbody tr').count(),1);await page.getByText('11 issues',{exact:true}).waitFor();
    assert.match(await page.locator('[data-health-duration]').textContent(),/5d 3h/);assert.equal(await page.locator('body').evaluate(el=>el.scrollWidth<=innerWidth),true);
    const provider=page.locator('[data-health-rows] .site-provider-link');
    assert.equal(await provider.getAttribute('href'),'https://www.solarweb.com/PvSystems/PvSystem?pvSystemId='+site.systemId.slice(2));
@@ -68,16 +68,16 @@ try {
    assert.equal(await page.locator('[data-health-accounts]').getByText('owner-51@example.invalid',{exact:true}).count(),0);
    assert.equal(await page.locator('body').evaluate(el=>el.scrollWidth<=innerWidth),true);
 
-   await page.getByText('Inverter <17>: reported offline',{exact:true}).waitFor();assert.equal(await page.locator('[data-health-detail] script').count(),0);
-   await page.getByLabel('Issue to review').selectOption('1');await page.locator('[data-health-detail]').getByText(/owner-reference/).waitFor();
-   await page.getByLabel('Issue to review').selectOption('0');await page.getByLabel('Review note',{exact:true}).fill('Hardware fault verified by staff.');
-   await page.getByLabel('Evidence summary to email owners and preferred technicians').fill('Verified inverter 17 offline during daylight.');
+   await page.getByText('Inverter <17>: Reported offline',{exact:true}).waitFor();assert.equal(await page.locator('[data-health-detail] script').count(),0);
+   await page.locator('[data-health-issue="1"]').click(); await page.locator('[data-health-detail] summary').filter({hasText:'Account reference'}).click();await page.locator('[data-health-detail]').getByText(/owner-reference/).waitFor();
+   await page.locator('[data-health-issue="0"]').click();await page.getByLabel('Review note',{exact:true}).fill('Hardware fault verified by staff.');
+   await page.getByLabel('Summary for owners and technicians').fill('Verified inverter 17 offline during daylight.');
    await page.screenshot({path:`${artifacts}/${label}-red-review.png`,fullPage:true});
    conflict=true;await page.getByRole('button',{name:'Save review',exact:true}).click();await page.getByText(/incident changed while you were reviewing/).waitFor();
    assert.equal(await page.getByLabel('Review note',{exact:true}).inputValue(),'Hardware fault verified by staff.');
    conflict=false;await page.getByRole('button',{name:'Save review',exact:true}).click();await page.getByText(/Red fault confirmed. Connected owners/).waitFor();
    assert.equal(reviewCalls.length,2);assert.equal(reviewCalls[0].idempotencyKey,reviewCalls[1].idempotencyKey);assert.equal(reviewCalls[1].input.id,'shared');assert.equal(reviewCalls[1].input.sharedSummary,'Verified inverter 17 offline during daylight.');
-   await page.locator('[data-health-rows]').getByText('Red · confirmed',{exact:true}).waitFor();
+   await page.locator('[data-health-rows]').getByText('Confirmed fault',{exact:true}).waitFor();
    failAccounts=true;await review().click();await page.getByRole('button',{name:'Retry accounts',exact:true}).waitFor();assert.equal(await page.locator('[data-health-accounts] li').count(),0);
    failAccounts=false;await page.getByRole('button',{name:'Retry accounts',exact:true}).click();await page.getByText('Connected accounts (51)',{exact:true}).waitFor();await page.getByRole('button',{name:'Close health review',exact:true}).click();
 
