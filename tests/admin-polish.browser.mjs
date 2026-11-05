@@ -14,7 +14,7 @@ try{for(const width of [320,390,1440]){
  await context.route('**/functions/v1/**',route=>{const body=route.request().postDataJSON(),name=new URL(route.request().url()).pathname.split('/').at(-1);calls.push(body);return route.fulfill({contentType:'application/json',body:JSON.stringify(fixtureResponse(name,body))});});
  await page.goto(`http://127.0.0.1:${server.address().port}/admin/?environment=development`);
  await page.getByLabel('EMAIL',{exact:true}).fill('preview@example.invalid');await page.getByLabel('PASSWORD',{exact:true}).fill('fixture');await page.getByRole('button',{name:'Sign In',exact:true}).click();
- await page.locator('.growth-charts').waitFor();assert.equal(await page.locator('#admin-nav button').count(),4);assert.equal(await page.getByRole('button',{name:'Onboarding',exact:true}).count(),0);
+ await page.locator('.growth-charts').waitFor();assert.equal(await page.locator('#admin-nav button').count(),5);assert.equal(await page.getByRole('button',{name:'Onboarding',exact:true}).count(),0);
  assert.equal(await page.locator('.growth-card').count(),2);assert.equal(await page.locator('[data-growth-range]').first().getAttribute('max'),'29');
  await page.getByRole('button',{name:'90 days',exact:true}).click();assert.equal(await page.locator('[data-growth-range]').first().getAttribute('max'),'89');
  await page.locator('#growth-users').focus();await page.keyboard.press('Home');assert.match(await page.locator('[data-growth=users] output').textContent(),/49 users/);

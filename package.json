@@ -11,7 +11,10 @@
     "test:models:browser": "node tests/health-models.browser.mjs",
     "test:alerts:browser": "node tests/alert-monitoring.browser.mjs",
     "test:browser": "node ../Mooose/tests/portal/staff-journey.mjs",
-    "test:review-hints": "node tests/review-hints.browser.mjs"
+    "test:review-hints": "node tests/review-hints.browser.mjs",
+    "test:pilot:browser": "node tests/pilot.browser.mjs"
   },
-  "devDependencies": { "playwright": "1.63.0" }
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
 }
