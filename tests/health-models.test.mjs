@@ -25,3 +25,20 @@ test('model evidence escapes upstream text and does not fabricate missing source
   assert.ok(!html.includes('<script>')); assert.ok(!html.includes('<img '));
   assert.match(html, /&lt;script&gt;/); assert.match(html, /GCP connection is not configured/); assert.match(html, /Unavailable/);
 });
+
+test('site outcomes compare only complete, mapped results and keep missing or uncertain evidence distinct', async () => {
+  const {modelOutcome}=await import('../admin/health-models.js');
+  const data=comparisonFixture();
+  assert.equal(modelOutcome(data.inverters,'conformal',2).state,'unavailable');
+  assert.equal(modelOutcome(data.inverters,'xgb',2).state,'flagged');
+  assert.match(comparisonHtml(data),/Comparison incomplete/);
+  data.inverters[1].conformal={tier:'GREEN',score:0};data.inverters[1].xgb={tier:'GREEN',score:0};data.source.missingInverters=0;
+  assert.equal(modelOutcome(data.inverters,'conformal',2).state,'clear');
+  assert.match(comparisonHtml(data),/Models disagree/);
+  data.inverters[0].conformal={tier:'REVIEW',score:.5};
+  assert.match(comparisonHtml(data),/One model is uncertain/);
+  data.inverters[0].deviceId=null;data.source.unmappedInverters=1;
+  assert.match(comparisonHtml(data),/Comparison incomplete/);
+  data.twin.availability='unavailable';
+  assert.match(comparisonHtml(data),/Daily production evidence unavailable/);
+});

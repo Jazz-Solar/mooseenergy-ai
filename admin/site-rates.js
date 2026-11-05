@@ -8,7 +8,7 @@ const state=row=>row.report_ready?['ready','Verified FIT rate']:row.connection_t
 export function mountSiteRates(root,call) {
   let alive=true,busy=false,generation=0,offset=0,rows=[],hasMore=false,selected=null;
   const retryKeys=new Map();
-  root.innerHTML=`<h2>Sites & FIT rates</h2><p>Confirm each site’s contract rate to enable accurate revenue reports.</p>
+  root.innerHTML=`<div class="section-intro"><p>Contract rates for revenue reports</p></div>
     <form class="rates-toolbar" data-rate-search><div><label for="rates-search">Search sites</label><input id="rates-search" type="search" maxlength="200" placeholder="Site name, ID or utility"></div><div><label for="rates-filter">Report rate status</label><select id="rates-filter"><option value="">All sites</option><option value="ready">Verified FIT rates</option><option value="needs_review">Needs review</option><option value="unsupported">Reports not supported</option></select></div><button>Search / refresh</button></form>
     <p role="status" data-rates-message class="access-message"></p><div data-rates-results></div>
     <div class="rates-pager"><button type="button" data-rates-prev>Previous</button><span data-rates-page></span><button type="button" data-rates-next>Next</button></div>

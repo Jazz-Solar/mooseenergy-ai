@@ -15,7 +15,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true});
-const stub=`export function createClient(){let session=null,cb=()=>{};return {auth:{getSession:async()=>({data:{session}}),onAuthStateChange:fn=>{cb=fn;return {data:{subscription:{unsubscribe(){}}}}},signInWithPassword:async({email})=>{session={user:{id:'admin',email},access_token:'fixture.admin.token'};cb('SIGNED_IN',session);return {data:{session},error:null}},signOut:async()=>{session=null;cb('SIGNED_OUT',null);return {error:null}}}};}`;
+const stub=`export function createClient(){let session=null,cb=()=>{};return {auth:{getSession:async()=>({data:{session}}),onAuthStateChange:fn=>{cb=fn;return {data:{subscription:{unsubscribe(){}}}}},signInWithPassword:async({email})=>{session={user:{id:'admin',email},access_token:'placeholder-admin-session'};cb('SIGNED_IN',session);return {data:{session},error:null}},signOut:async()=>{session=null;cb('SIGNED_OUT',null);return {error:null}}}};}`;
 const now=Date.now(), at=hours=>new Date(now+hours*3600e3).toISOString();
 const recipients=['glani@jazzsolar.com','jon@jazzsolar.com','monitoring@jazzsolar.com'].map(email=>({email,lastSentAt:null,nextAllowedAt:null,due:true,queued:0,uncertain:0}));
 const base={blockers:[],enrolled:true,connected:true,modelAvailable:true,lastCheckedAt:at(-.02),nextCheckAt:at(.8),emailEligibleNow:false,recipients};
@@ -51,10 +51,10 @@ try{
   try {
    await page.goto(`http://127.0.0.1:${server.address().port}/admin/?environment=development`);
    await page.getByLabel('EMAIL',{exact:true}).fill('admin@example.invalid');await page.getByLabel('PASSWORD',{exact:true}).fill('fixture');
-   await page.getByRole('button',{name:'Sign In',exact:true}).click();await page.getByRole('heading',{name:'Staff overview'}).waitFor();
-   await navigate('Alert monitoring');await page.getByRole('heading',{name:'North roof',exact:true}).waitFor();
+   await page.getByRole('button',{name:'Sign In',exact:true}).click();await page.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+   await navigate('Sites'); await page.getByRole('tab',{name:'Alerts',exact:true}).click(); await page.getByRole('button',{name:'Details for North roof',exact:true}).click();await page.getByRole('heading',{name:'North roof',exact:true}).waitFor();
    assert.equal(await page.locator('#alert-monitoring script').count(),0,'provider text is escaped');
-   assert.equal(await page.locator('.site-provider-link').count(),1,'unknown providers do not get guessed links');
+   assert.equal(await page.locator('#alert-monitoring .site-provider-link').count(),1,'unknown providers do not get guessed links');
    const accounts=page.locator('[data-connected-site="f:ae636650-d4f3-47a1-9bd4-33f07387daa3"]');
    await accounts.locator('summary').click();await accounts.getByText('owner@example.invalid',{exact:true}).waitFor();
    await page.getByText('Prequalified from history',{exact:true}).waitFor();

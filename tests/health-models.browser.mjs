@@ -38,7 +38,9 @@ try {
       return { data };
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/fixture`);
+    await page.locator('#site-model-comparison > summary').click();
     await page.getByRole('heading', { name: 'Digital Twin', exact: true }).waitFor();
+    await page.locator('.model-inverters > summary').click();
     assert.match(await page.locator('.models-freshness').textContent(), /Delayed update/);
     assert.equal(await page.locator('.models-table tbody tr').count(), 2);
     assert.equal(await page.locator('.models-table img').count(), 0);
@@ -54,13 +56,14 @@ try {
     await page.getByLabel('Analysis day', { exact: true }).fill('2026-10-28');
     await page.waitForFunction(() => document.querySelector('.models-caption')?.textContent.includes('2026-10-28'));
     assert.equal(await page.locator('.models-table .model-badge').filter({ hasText: 'Not scored' }).count(), 4);
+    await page.locator('.model-inverters > summary').click();
     await page.getByRole('button', { name: 'Latest published day' }).click();
     await page.waitForFunction(() => document.querySelector('#model-date').value === '2026-10-27');
     fail = true; await page.getByRole('button', { name: 'Refresh comparison', exact: true }).click();
     await page.getByText('Source temporarily unavailable Use Refresh comparison to retry.', { exact: true }).waitFor();
     assert.equal(await page.locator('.models-table').count(), 0);
     fail = false; await page.getByRole('button', { name: 'Refresh comparison', exact: true }).click();
-    await page.locator('.models-table').waitFor();
+    await page.locator('.models-table').waitFor({state:'attached'});
     hold = true; await page.getByRole('button', { name: 'Refresh comparison', exact: true }).click();
     await page.waitForTimeout(30); assert.ok(queued);
     await page.getByLabel('Comparison site').selectOption('site-b');
