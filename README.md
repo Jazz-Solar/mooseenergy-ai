@@ -153,3 +153,7 @@ Connected accounts in Alert monitoring for the same information. The list reads
 every page of the existing staff assignment directory, matches the exact site,
 and includes all connected assignments (labeling inactive access). Provider
 sign-in and permissions continue to apply. No backend migration is needed.
+
+### Pilot contacts
+
+Pilot is a staff-only, read-only contact shortlist with priority sorting, search, provider/review filters, pagination, and full contact/site details. It loads through the protected admin endpoint on navigation; contact data stays in private backend storage and is cleared on sign-out. Run `npm run test:pilot:browser` for mobile and desktop coverage.

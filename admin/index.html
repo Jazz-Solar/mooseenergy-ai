@@ -71,6 +71,7 @@
   <link rel="stylesheet" href="./admin.css?v=20261105-1" />
   <link rel="stylesheet" href="./alert-monitoring.css?v=20261105-1" />
   <link rel="stylesheet" href="./health-models.css?v=20261105-1" />
+  <link rel="stylesheet" href="./pilot.css?v=20261105-1" />
 </head>
 <body class="admin-app">
   <aside class="admin-sidebar" id="admin-sidebar" hidden aria-label="Admin sidebar">
@@ -110,6 +111,7 @@
       <div id="overview-content"></div>
 
       </section>
+      <section id="pilot" data-admin-section="pilot" class="admin-page" hidden></section>
       <section id="people-users" data-admin-section="users" class="admin-page" hidden>
       <h2>Users</h2>
       <div class="card scroll" style="padding:6px 10px">
@@ -143,7 +145,8 @@
     import { mountSiteHealth } from './site-health.js?v=20261105-1';
     import { mountAlertMonitoring } from './alert-monitoring.js?v=20261105-1';
     import { mountSiteRates } from './site-rates.js?v=20261105-1';
-    import { mountAdminShell } from './admin-shell.js?v=20261105-1';
+    import { mountAdminShell } from './admin-shell.js?v=20261105-pilot-1';
+    import { mountPilot } from './pilot.js?v=20261105-1';
     import { mountOverview } from './overview.js?v=20261105-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search, location.hostname);
@@ -154,7 +157,7 @@
       storageKey: environment.storageKey, detectSessionInUrl: false,
     }});
     const boundary = createSessionBoundary();
-    let workspace = null, rates = null, health = null, alerts = null, overview = null;
+    let workspace = null, rates = null, health = null, alerts = null, overview = null, pilot = null;
     const shell = mountAdminShell(page => {
       if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false) return false;
       const access = ['reviews','mappings','assignments','history'].includes(page);
@@ -163,6 +166,7 @@
         else document.querySelector(`#site-access [data-view="${page}"]`)?.click();
       }
       document.querySelectorAll('[data-admin-section]').forEach(section => section.hidden = section.dataset.adminSection !== (access ? 'access' : page));
+      if (page === 'pilot') void pilot?.show();
       if (page === 'alerts') void alerts?.refresh();
       return true;
     });
@@ -190,6 +194,7 @@
       rates?.destroy(); rates = null; health?.destroy(); health = null; alerts?.destroy(); alerts = null; shell.reset();
       $('site-rates').replaceChildren(); $('site-health').replaceChildren();
       $('site-access').replaceChildren();
+      pilot?.destroy(); pilot = null;
       overview?.destroy(); overview = null; $('drawer').replaceChildren();
       for (const id of ['users','fb']) $(id).querySelector('tbody').replaceChildren();
       $('dash').style.display = 'none';
@@ -243,6 +248,7 @@
       $('login').style.display = 'none';
       $('dash').style.display = 'block';
       $('signout').style.display = 'block';
+      pilot?.destroy(); pilot = mountPilot($('pilot'), callFn);
       shell.enable();
       $('subtitle').textContent = session.user.email;
 
