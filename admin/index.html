@@ -71,7 +71,7 @@
   <link rel="stylesheet" href="./admin.css?v=20261105-1" />
   <link rel="stylesheet" href="./alert-monitoring.css?v=20261105-1" />
   <link rel="stylesheet" href="./health-models.css?v=20261105-1" />
-  <link rel="stylesheet" href="./pilot.css?v=20261105-1" />
+  <link rel="stylesheet" href="./pilot.css?v=20261105-outreach-1" />
 </head>
 <body class="admin-app">
   <aside class="admin-sidebar" id="admin-sidebar" hidden aria-label="Admin sidebar">
@@ -146,7 +146,7 @@
     import { mountAlertMonitoring } from './alert-monitoring.js?v=20261105-1';
     import { mountSiteRates } from './site-rates.js?v=20261105-1';
     import { mountAdminShell } from './admin-shell.js?v=20261105-pilot-1';
-    import { mountPilot } from './pilot.js?v=20261105-1';
+    import { mountPilot } from './pilot.js?v=20261105-outreach-1';
     import { mountOverview } from './overview.js?v=20261105-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search, location.hostname);
@@ -159,7 +159,7 @@
     const boundary = createSessionBoundary();
     let workspace = null, rates = null, health = null, alerts = null, overview = null, pilot = null;
     const shell = mountAdminShell(page => {
-      if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false) return false;
+      if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false || pilot?.canLeave?.() === false) return false;
       const access = ['reviews','mappings','assignments','history'].includes(page);
       if (access) {
         if (typeof workspace?.selectView === 'function') workspace.selectView(page);
