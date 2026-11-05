@@ -7,13 +7,22 @@ const root=resolve('.'),artifacts=resolve('../browser-evidence');await mkdir(art
 const server=createServer(async(req,res)=>{try{const pathname=new URL(req.url,'http://localhost').pathname;const p=resolve(root,'.'+(pathname.endsWith('/')?pathname+'index.html':pathname));if(!p.startsWith(root+'/'))throw Error();res.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.css':'text/css'}[extname(p)]||'application/octet-stream'});res.end(await readFile(p));}catch{res.writeHead(404);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({headless:true,executablePath:'/home/kali/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome'});
-const stub=`export function createClient(url,key,options){let callback=()=>{};const saved=()=>JSON.parse(sessionStorage.getItem(options.auth.storageKey)||'null');return {auth:{getSession:async()=>({data:{session:saved()}}),onAuthStateChange:fn=>{callback=fn;return {data:{subscription:{unsubscribe(){}}}}},signInWithPassword:async({email})=>{const session={user:{id:email.split('@')[0],email},access_token:'fixture'};sessionStorage.setItem(options.auth.storageKey,JSON.stringify(session));callback('SIGNED_IN',session);return {data:{session},error:null}},signOut:async()=>{sessionStorage.removeItem(options.auth.storageKey);callback('SIGNED_OUT',null);return {error:null}}},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{role:saved()?.user.id==='admin'?'admin':'owner'}})})})}),functions:{invoke:async(name,{body})=>{const r=await fetch('/fixture-edge',{method:'POST',body:JSON.stringify({...body,actor:saved()?.user.id})});const data=await r.json();return r.ok?{data,error:null}:{data:null,error:{context:{json:async()=>data}}};}}};}`;
+const stub=`export function createClient(url,key,options){let callback=()=>{};const saved=()=>JSON.parse(sessionStorage.getItem(options.auth.storageKey)||'null');return {auth:{getSession:async()=>({data:{session:saved()}}),onAuthStateChange:fn=>{callback=fn;return {data:{subscription:{unsubscribe(){}}}}},signInWithPassword:async({email})=>{const session={user:{id:email.split('@')[0],email},access_token:'fixture'};sessionStorage.setItem(options.auth.storageKey,JSON.stringify(session));callback('SIGNED_IN',session);return {data:{session},error:null}},signOut:async()=>{sessionStorage.removeItem(options.auth.storageKey);callback('SIGNED_OUT',null);return {error:null}}},rpc:(name,args)=>({setHeader:async()=>{const r=await fetch('/fixture-setup',{method:'POST',body:JSON.stringify({name,args,actor:saved()?.user.id})});return {data:await r.json(),error:null};}}),from:()=>({select:()=>({eq:()=>({single:async()=>({data:{role:saved()?.user.id==='admin'?'admin':'owner'}})})})}),functions:{invoke:async(name,{body})=>{const r=await fetch('/fixture-edge',{method:'POST',body:JSON.stringify({...body,actor:saved()?.user.id})});const data=await r.json();return r.ok?{data,error:null}:{data:null,error:{context:{json:async()=>data}}};}}};}`;
 try{
  for(const provider of ['derapi','enphase','enphase_direct','fronius']) for(const width of [320,390,1280]){
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   let status='awaiting_portal',connected=false,recommendationMode='single';const choices=[];const selectedId=provider==='fronius'?'f:20000000-0000-4000-8000-000000000001':provider==='enphase_direct'?'e:123':'site-maple',otherId=provider==='fronius'?'f:20000000-0000-4000-8000-000000000002':provider==='enphase_direct'?'e:456':'site-cabin',connectedId=['fronius','enphase_direct'].includes(provider)?selectedId:'d:'+selectedId;
   const sites=[{id:selectedId,name:'Maple House',address:provider==='fronius'?{street:'12 Maple St',city:'Toronto',country:'Canada'}:{},latitude:provider==='fronius'?null:43.65,longitude:provider==='fronius'?null:-79.38},{id:otherId,name:'Lake Cabin',latitude:44.57,longitude:-80.94},...(provider==='enphase_direct'?Array.from({length:100},(_,i)=>({id:`e:${1000+i}`,name:`Other site ${i+1}`,latitude:null,longitude:null})):[])];
   const request={id:'10000000-0000-4000-8000-000000000001',provider:provider==='enphase'?'derapi':provider==='enphase_direct'?'enphase':provider,vendor:provider==='fronius'?'fronius':['enphase','enphase_direct'].includes(provider)?'enphase':'virtual',accessMode:'technician_managed',siteName:'Maple House',address:'12 Maple Street',sandbox:provider==='derapi',connectedIds:[],technicianEmail:'technician@example.invalid',...(provider==='enphase'?{verificationMethod:'enphase'}:{})};
+  let revision=null,setupRevision=null,values={},equipment=[],address='12 Maple Street';
+  const setupCalls=[];
+  await context.route('**/fixture-setup',async route=>{
+   const {name,args,actor}=route.request().postDataJSON();assert.equal(actor,'technician');assert.equal(args.p_system||args.p_system_id,connectedId);setupCalls.push(name);
+   if(name==='save_site_model_settings'){assert.equal(args.p_expected_revision,revision);values=args.p_values;revision='model-revision';}
+   if(name==='save_site_setup'){assert.equal(args.p_expected_revision,setupRevision);equipment=args.p_devices;address=args.p_address;setupRevision='setup-revision';}
+   const data=name.endsWith('site_setup')?{systemId:connectedId,address,equipment,revisionId:setupRevision}:{systemId:connectedId,overrides:values,effectiveValues:{timezone:'America/Toronto'},revisionId:revision};
+   await route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
+  });
   await context.route('https://esm.sh/**',route=>route.fulfill({contentType:'text/javascript',body:stub}));
   await context.route('**/fixture-edge',async route=>{const b=route.request().postDataJSON();const can=b.actor==='technician',r={...request,status,canConnect:can,isOwner:b.actor==='owner'};
    const reply=data=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
@@ -43,6 +52,19 @@ try{
   const more=page.locator('summary');await more.focus();await page.keyboard.press('Enter');await page.getByRole('radio',{name:'Lake Cabin'}).waitFor();assert.equal(await page.getByRole('radio').count(),sites.length);
   await page.getByRole('radio',{name:'Lake Cabin'}).check();assert.equal(await page.locator('input[name=site]:checked').count(),1);await more.focus();await page.keyboard.press('Enter');assert.equal(await page.getByRole('radio',{name:'Lake Cabin'}).count(),0);assert.equal(await page.locator(`input[value="${otherId}"]`).isChecked(),true);
   await page.getByRole('radio',{name:'Maple House'}).check();await page.getByRole('button',{name:'Connect the selected site'}).click();await page.getByText("1 site connected to the requesting owner's Moose account.",{exact:true}).waitFor();assert.deepEqual(choices,[selectedId]);
+  if(provider==='enphase_direct'){
+   await page.getByRole('button',{name:'Review site details',exact:true}).click();
+   await page.getByLabel('Panel tilt (degrees)',{exact:true}).fill('30');
+   await page.getByRole('button',{name:'Save installation settings',exact:true}).click();await page.getByText('Installation settings saved.',{exact:true}).waitFor();
+   assert.equal(values.tilt_degrees,30);assert.equal(values.model_mode,'tilted');assert.equal(values.max_dc_power_kw,undefined);
+   await page.getByLabel('Site address',{exact:true}).fill('14 Maple Street, Toronto');
+   await page.locator('summary').filter({hasText:'Panel capacity by inverter'}).click();
+   await page.getByLabel('Verified inverter serial numbers and panel watts').fill('MICRO1, 205');
+   await page.getByRole('button',{name:'Save address and panel details',exact:true}).click();await page.getByText('Site details saved. Available roof and equipment data will refresh automatically.',{exact:true}).waitFor();
+   assert.deepEqual(equipment,[{deviceId:'MICRO1',dcPowerW:205}]);assert.equal(address,'14 Maple Street, Toronto');
+   await page.screenshot({path:resolve(artifacts,`enphase-setup-${width}.png`),fullPage:true});
+   assert(setupCalls.includes('save_site_setup'));
+  }
   await page.getByRole('button',{name:'Sign out',exact:true}).click();assert.equal(await page.locator('#request').textContent(),'');
   await page.getByLabel('Email',{exact:true}).fill('other@example.invalid');await page.getByLabel('Password',{exact:true}).fill('fixture-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('alert').filter({hasText:'another account'}).waitFor();assert.equal(await page.getByRole('radio').count(),0);
   assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await context.close();

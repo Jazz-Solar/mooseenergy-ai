@@ -7,20 +7,21 @@ let generation=0,session=null,busy=false,current=null,isAdmin=false;
 const requestId=new URLSearchParams(location.search).get('request');
 el('environment').textContent=env.label;
 el('signup').href='/app/';
-const labels={awaiting_portal:'Waiting for portal access',authorizing:'Portal connection started',pending_verification:'Waiting for access verification',needs_selection:'Choose the intended site',ready:'Preparing sites',connected:'Connected',denied:'Portal connection needs another attempt',cancelled:'Cancelled',awaiting_inventory:'Waiting for site details'};
+const labels={reconnect_required:'Reconnect your portal',awaiting_portal:'Waiting for portal access',authorizing:'Portal connection started',pending_verification:'Waiting for access verification',needs_selection:'Choose the intended site',ready:'Preparing sites',connected:'Connected',denied:'Portal connection needs another attempt',cancelled:'Cancelled',awaiting_inventory:'Waiting for site details'};
 function node(tag,text,parent,cls){const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;parent?.append(n);return n;}
 function button(text,parent,fn,secondary=true){const b=node('button',text,parent,secondary?'secondary':'');b.type='button';b.addEventListener('click',()=>run(fn));return b;}
 function disable(value){document.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=value);}
 async function run(fn){if(busy)return;const gen=generation;busy=true;disable(true);el('error').textContent='';try{await fn();}catch(error){if(gen===generation)el('error').textContent=error.safeMessage||'This step could not be completed. Refresh and try again.';}finally{if(gen===generation){busy=false;disable(false);}}}
 async function call(body){const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
-async function show(id){const data=await call({action:'status',requestId:id});current=data;render(data);}
-async function load(){const gen=generation;const {data}=await client.from('profiles').select('role').eq('id',session.user.id).single();if(gen!==generation)return;isAdmin=data?.role==='admin';const requests=await call({action:'list'});el('requests').replaceChildren();for(const r of requests)button(`${r.siteName||r.vendor} · ${labels[r.status]||'Needs review'}`,el('requests'),()=>show(r.id));if(requestId)await show(requestId);else if(requests.length===1)await show(requests[0].id);else if(!requests.length)el('notice').textContent='No requests are assigned to this account. Ask the owner to select your confirmed email in Moose.';}
+async function show(id){const data=await call({action:'status',requestId:id});current=data;render(data);for(const item of el('requests').querySelectorAll('button'))if(item.dataset.requestId===data.id)item.textContent=`${data.siteName||data.vendor} · ${labels[data.status]||'Needs review'}`;}
+async function load(){const gen=generation;const {data}=await client.from('profiles').select('role').eq('id',session.user.id).single();if(gen!==generation)return;isAdmin=data?.role==='admin';const requests=await call({action:'list'});el('requests').replaceChildren();for(const r of requests){const item=button(`${r.siteName||r.vendor} · ${labels[r.status]||'Needs review'}`,el('requests'),()=>show(r.id));item.dataset.requestId=r.id;}if(requestId)await show(requestId);else if(requests.length===1)await show(requests[0].id);else if(!requests.length)el('notice').textContent='No requests are assigned to this account. Ask the owner to select your confirmed email in Moose.';}
 function render(r){const root=el('request');root.replaceChildren();node('h2',r.siteName||'Portal sites',root);node('p',`${r.vendor} · ${labels[r.status]||'Connection needs review'}`,root);if(r.address)node('p',r.address,root);if(r.sandbox)node('p','Sandbox · synthetic readings for testing only.',root,'badge');
- if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to the requesting owner's Moose account.`,root);node('p','You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);return;}
+ if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to the requesting owner's Moose account.`,root);node('p','You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open MOOSE',root);link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
+  const setup=node('div',null,root);for(const id of r.connectedIds)button(r.connectedIds.length===1?'Review site details':`Review ${id}`,setup,()=>showSetup(id,setup));return;}
  if(r.status==='cancelled'){node('p','The owner cancelled this request.',root);return;}
- if(r.canConnect&&['awaiting_portal','authorizing','denied'].includes(r.status)){
+ if(r.canConnect&&['awaiting_portal','authorizing','denied','reconnect_required'].includes(r.status)){
    node('p','Sign in to the manufacturer portal and approve access. You will return here to finish connecting the site.',root);
-   button(r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':r.provider==='enphase'?url.origin==='https://api.enphaseenergy.com'&&url.pathname==='/oauth/authorize'&&url.searchParams.get('response_type')==='code':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
+   button(r.status==='reconnect_required'?'Reconnect portal':r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':r.provider==='enphase'?url.origin==='https://api.enphaseenergy.com'&&url.pathname==='/oauth/authorize'&&url.searchParams.get('response_type')==='code':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
  }
  if(r.status==='pending_verification'){
   if(r.canConnect&&r.verificationMethod==='enphase'){
@@ -56,3 +57,62 @@ el('login').addEventListener('submit',event=>{event.preventDefault();void run(as
 el('signout').addEventListener('click',()=>{void run(async()=>{await client.auth.signOut();await accountChanged(null);});});
 client.auth.onAuthStateChange((_event,next)=>{setTimeout(()=>void accountChanged(next),0);});
 const initial=await client.auth.getSession();await accountChanged(initial.data.session);
+
+async function setupRpc(name,args){
+ const gen=generation,user=session?.user.id,token=session?.access_token;
+ if(!user||!token)throw Error('Sign in');
+ const {data,error}=await client.rpc(name,args).setHeader('Authorization',`Bearer ${token}`);
+ if(gen!==generation||session?.user.id!==user)throw Error('Account changed');
+ if(error){const e=Error('Setup unavailable');e.safeMessage=error.code==='40001'?'These settings changed elsewhere. Reload before saving.':'Site setup is available to the owner and to the connecting technician for seven days. Return to the app or ask the owner to review these details.';throw e;}
+ return data;
+}
+async function showSetup(id,parent){
+ const [settings,setup]=await Promise.all([setupRpc('read_site_model_settings',{p_system_id:id}),setupRpc('read_site_setup',{p_system:id})]);
+ if(settings?.systemId!==id||setup?.systemId!==id)throw Error('Invalid site');
+ parent.querySelector('.setup-form')?.remove();
+ const form=node('section',null,parent,'setup-form');node('h3','Site details',form);
+ node('p','Enter only values confirmed by the installation records or electricity contract. Empty fields keep the existing defaults. Changes are shared with the site owners.',form);
+ const fields=new Map();
+ function input(label,key,value,placeholder='',type='text'){
+  const wrap=node('label',label,form),field=node('input',null,wrap);field.type=type;field.value=value??'';field.placeholder=placeholder;field.maxLength=500;fields.set(key,field);return field;
+ }
+ for(const [key,label] of [['max_dc_power_kw','Total panel capacity (kW DC)'],['max_ac_power_kw','Total inverter capacity (kW AC)'],['tilt_degrees','Panel tilt (degrees)'],['azimuth_degrees','Facing direction (0 north, 90 east, 180 south, 270 west)']]){
+  const field=input(label,key,settings.overrides?.[key],String(settings.effectiveValues?.[key]??'Unknown'),'number');field.step='any';
+ }
+ const timezoneLabel=node('label','Timezone (IANA, when missing)',form),timezone=node('input',null,timezoneLabel);timezone.value=settings.overrides?.timezone||'';timezone.placeholder=settings.effectiveValues?.timezone||'e.g. America/Toronto';
+ const connectionLabel=node('label','Electricity connection',form),connection=node('select',null,connectionLabel);
+ for(const [value,label] of [['','Use existing setting'],['FIT','Feed-in tariff'],['NET_METERED','Net metering'],['LOAD_DISPLACEMENT','Load displacement']]){const option=node('option',label,connection);option.value=value;}
+ connection.value=settings.overrides?.connection_type||'';
+ const tariff=node('details',null,form);node('summary','Electricity rate (optional)',tariff);node('p','Enter the verified currency, rate per kWh and contract dates. Metered savings still require consumption/import/export evidence.',tariff);
+ const tariffFields={};for(const [key,label,type] of [['currency','Currency, e.g. CAD','text'],['rate','Rate per kWh','number'],['startDate','Valid from','date'],['endDate','Valid through','date']]){
+  const labelNode=node('label',label,tariff),field=node('input',null,labelNode);field.type=type;if(type==='number')field.step='any';tariffFields[key]=field;
+ }
+ button('Save installation settings',form,async()=>{
+  const values={...settings.overrides};for(const [key,field] of fields){if(field.value.trim())values[key]=Number(field.value);else delete values[key];}
+  if(timezone.value.trim())values.timezone=timezone.value.trim();
+  if(connection.value)values.connection_type=connection.value;else delete values.connection_type;
+  if(values.tilt_degrees>0)values.model_mode='tilted';
+  if(Object.values(tariffFields).some(field=>field.value)){
+   if(Object.values(tariffFields).some(field=>!field.value)){const e=Error('Tariff incomplete');e.safeMessage='Enter all four tariff fields, or leave all four empty to keep the saved tariff.';throw e;}
+   // Existing multiple contract periods must be maintained in the full app form.
+   if((settings.overrides?.tariff_periods?.length||0)>1){const e=Error('Multiple tariffs');e.safeMessage='This site has several tariff periods. Edit them in the app to preserve the full contract history.';throw e;}
+   values.tariff_periods=[{currency:tariffFields.currency.value.trim().toUpperCase(),rate:Number(tariffFields.rate.value),startDate:tariffFields.startDate.value,endDate:tariffFields.endDate.value}];
+  }
+  await setupRpc('save_site_model_settings',{p_system_id:id,p_values:values,p_expected_revision:settings.revisionId});
+  await showSetup(id,parent);el('notice').textContent='Installation settings saved.';
+ },false);
+ const addressLabel=node('label','Site address',form),address=node('input',null,addressLabel);address.value=setup.address;address.maxLength=500;
+ let devices=null;
+ if(id.startsWith('e:')){
+  const extra=node('details',null,form);node('summary','Panel capacity by inverter (optional)',extra);
+  node('p','One inverter serial number, comma, total connected panel watts per line. Use verified nameplate values; do not divide the total capacity across an unknown or mixed array.',extra);
+  const label=node('label','Verified inverter serial numbers and panel watts',extra);devices=node('textarea',null,label);devices.maxLength=100000;devices.rows=6;devices.value=setup.equipment.map(d=>`${d.deviceId}, ${d.dcPowerW}`).join('\n');
+ }
+ button('Save address and panel details',form,async()=>{
+  const seen=new Set(),equipment=devices?devices.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{
+   const fields=line.split(',').map(s=>s.trim()),watts=Number(fields[1]);if(fields.length!==2||!/^[A-Za-z0-9_-]{1,128}$/.test(fields[0])||seen.has(fields[0])||!Number.isFinite(watts)||watts<1||watts>1e9)throw Error('Invalid device inputs');seen.add(fields[0]);return {deviceId:fields[0],dcPowerW:watts};
+  }):setup.equipment;
+  await setupRpc('save_site_setup',{p_system:id,p_address:address.value.trim(),p_devices:equipment,p_expected_revision:setup.revisionId});
+  await showSetup(id,parent);el('notice').textContent='Site details saved. Available roof and equipment data will refresh automatically.';
+ });
+}
