@@ -1,24 +1,29 @@
 import { providerSiteLink, mountConnectedAccounts } from './site-context.js?v=20261009-site-context-1';
 import { escapeHtml as e } from "./site-access.js?v=20260914-fit-rates-1";
-import { mountHealthModels } from './health-models.js?v=20261030-1';
+import { mountHealthModels } from './health-models.js?v=20261105-1';
 export const healthState = (status) =>
   ({
-    yellow: "Yellow · needs review",
-    red: "Red · confirmed",
-    pending: "Yellow · needs review",
-    confirmed: "Red · confirmed",
-    dispatched: "Red · confirmed",
+    yellow: "Needs review",
+    red: "Confirmed fault",
+    pending: "Needs review",
+    confirmed: "Confirmed fault",
+    dispatched: "Confirmed fault",
     resolved: "Recovered",
     dismissed: "Dismissed",
   })[status] || "Unavailable";
-export const healthCause = (c) =>
-  c.kind === "inverter"
-    ? `${c.name || c.deviceId}: ${c.reason === "provider_offline" ? "reported offline" : c.reason === "below_70_percent" ? "production below 70% of expected output" : "sustained zero output"}`
-    : c.kind === "production"
-      ? "Production below 70% of expected output for this account."
-      : c.kind === "physical"
-        ? c.summary || "Staff observed a physical fault."
-        : "Scheduled monitoring readings are unavailable.";
+export const healthCause = c => {
+  const reason = ({provider_offline:'Reported offline',below_70_percent:'Production below 70% of expected',sustained_zero:'Sustained zero output'})[c.reason];
+  if(c.kind === 'inverter') return `${c.name || c.deviceId || 'Inverter'}: ${reason || 'Monitoring needs review'}`;
+  if(c.kind === 'production') return 'Site production below 70% of expected output.';
+  if(c.kind === 'physical') return c.summary || 'Staff observed a physical fault.';
+  return 'Scheduled monitoring readings are unavailable.';
+};
+const faultCard = c => {
+  const performance = c.performance || {};
+  const power = value => typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString()} W` : null;
+  const guidance = c.kind === 'physical' ? 'Verify the repair before recording recovery.' : c.reason === 'provider_offline' ? 'Check inverter power and its provider connection.' : c.reason === 'below_70_percent' || c.kind === 'production' ? 'Check shading, weather and model settings alongside equipment.' : c.reason === 'sustained_zero' ? 'Check whether the inverter stopped producing during daylight.' : 'Restore valid readings before drawing a fault conclusion.';
+  return `<article class="fault-card"><span class="fault-marker" aria-hidden="true">!</span><div><h4>${e(healthCause(c))}</h4><p>${guidance}</p>${power(performance.actualPowerW) && power(performance.expectedPowerW) ? `<p><strong>${e(power(performance.actualPowerW))}</strong> actual · ${e(power(performance.expectedPowerW))} expected</p>` : ''}${c.observedAt ? `<small>Observed ${e(date(c.observedAt))}</small>` : ''}${c.deviceId ? `<details><summary>Device reference</summary><small>${e(c.deviceId)}</small></details>` : ''}</div></article>`;
+};
 const date = (value) =>
   value ? new Date(value).toLocaleString() : "Not recorded";
 export function healthDuration(start, end = Date.now()) {
@@ -38,18 +43,21 @@ export function mountSiteHealth(root, call) {
     rows = [],
     selected = null,
     connectedAccounts = null,
+    reviewModels = null,
     site = null,
     incidents = [],
     incidentOffset = 0,
     incidentNext = null,
     returnFocus = null;
   const keys = new Map();
-  root.innerHTML = `<h2>Site health</h2><div data-health-models></div><h3>Health review queue</h3><p>One entry per site. Open a site to review its issues, confirm a physical fault or record recovery. Duration starts with the earliest recorded open issue.</p>
-    <form data-health-filter class="rates-toolbar"><div><label for="health-status">Status</label><select id="health-status"><option value="active">All active sites</option><option value="yellow">Yellow · needs review</option><option value="red">Red · confirmed</option><option value="resolved">Recovered</option><option value="dismissed">Dismissed</option></select></div><button>Refresh queue</button></form>
+  root.innerHTML = `<div class="section-intro"><p>Sites that need your attention</p><a href="#site-model-comparison" data-show-models>Compare models <span aria-hidden="true">↗</span></a></div>
+    <form data-health-filter class="rates-toolbar"><div><label for="health-status">Status</label><select id="health-status"><option value="active">Open issues</option><option value="yellow">Needs review</option><option value="red">Confirmed faults</option><option value="resolved">Recovered</option><option value="dismissed">Dismissed</option></select></div><button>Refresh queue</button></form>
     <p data-health-message role="status" class="access-message"></p><div data-health-rows></div><div class="rates-pager"><button type="button" data-health-prev>Previous</button><span data-health-page></span><button type="button" data-health-next>Next</button></div>
-    <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><h3 id="health-title">Review site health</h3><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-site-link></div><div data-health-accounts></div><div data-health-issues></div><div data-health-detail></div></dialog>`;
+    <details class="site-model-comparison" id="site-model-comparison"><summary>Digital Twin vs GCP <span>Compare a completed day</span></summary><div data-health-models></div></details>
+    <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><div><span class="eyebrow">Health review</span><h3 id="health-title">Review site health</h3></div><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-site-link></div><div data-health-issues></div><div data-health-detail></div><div data-review-models></div><div data-health-accounts></div></dialog>`;
   const $ = (s) => root.querySelector(s),
     dialog = $("dialog");
+  const reviewRoot = $('[data-review-models]');
   const models = mountHealthModels($('[data-health-models]'), call);
   const message = (text) => {
     if (alive) $("[data-health-message]").textContent = text;
@@ -58,7 +66,7 @@ export function mountSiteHealth(root, call) {
     rows = data.items;
     next = data.nextOffset;
     $("[data-health-rows]").innerHTML = rows.length
-      ? `<div class="access-table-scroll" role="region" aria-label="Site health queue" tabindex="0"><table class="access-table"><thead><tr><th>Site</th><th>Status and issues</th><th>Open for</th><th>Latest evidence</th><th></th></tr></thead><tbody>${rows.map((r, index) => `<tr><td><strong>${e(r.systemName)}</strong>${providerSiteLink(r.systemId, r.systemName)}<small>${Number(r.issueCount)} issue${r.issueCount === 1 ? "" : "s"} · ${Number(r.sharedCount)} shared · ${Number(r.privateCount)} account</small></td><td><strong>${e(healthState(r.status))}</strong><small>${e((r.summaries || []).join(" · "))}</small></td><td>${["yellow", "red"].includes(r.status) ? `<strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong><small>Since ${e(date(r.firstObservedAt))}</small>` : "Closed · see issue history"}</td><td>${e(date(r.latestObservedAt))}</td><td><button type="button" data-health-open="${index}" aria-label="Review health for ${e(r.systemName)}">Review site</button></td></tr>`).join("")}</tbody></table></div>`
+      ? `<div class="access-table-scroll" role="region" aria-label="Site health queue" tabindex="0"><table class="access-table"><thead><tr><th>Site</th><th>Status and issues</th><th>Open for</th><th>Latest evidence</th><th></th></tr></thead><tbody>${rows.map((r, index) => `<tr><td><strong>${e(r.systemName)}</strong>${providerSiteLink(r.systemId, r.systemName)}<small>${Number(r.issueCount)} issue${r.issueCount === 1 ? "" : "s"}</small></td><td><strong>${e(healthState(r.status))}</strong><small>${e((r.summaries || []).join(" · "))}</small></td><td>${["yellow", "red"].includes(r.status) ? `<strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong><small>Since ${e(date(r.firstObservedAt))}</small>` : "Closed · see issue history"}</td><td>${e(date(r.latestObservedAt))}</td><td><button type="button" data-health-open="${index}" aria-label="Review health for ${e(r.systemName)}">Review site</button></td></tr>`).join("")}</tbody></table></div>`
       : '<div class="access-empty">No sites match this status.</div>';
     $("[data-health-page]").textContent = rows.length
       ? `${offset + 1}–${offset + rows.length} of ${data.total} sites`
@@ -90,6 +98,9 @@ export function mountSiteHealth(root, call) {
   }
   async function open(row, button) {
     site = row;
+    $("#health-title").textContent = row.systemName;
+    reviewModels?.destroy();
+    reviewModels = mountHealthModels(reviewRoot, call, {systemId:row.systemId});
     incidentOffset = 0;
     returnFocus = button;
     $("[data-health-site-link]").innerHTML = providerSiteLink(row.systemId, row.systemName);
@@ -110,7 +121,7 @@ export function mountSiteHealth(root, call) {
       incidents = r.data.items;
       incidentNext = r.data.nextOffset;
       $("[data-health-issues]").innerHTML = incidents.length
-        ? `<label for="health-issue">Issue to review</label><select id="health-issue">${incidents.map((v, i) => `<option value="${i}">${e(v.summary)} · ${v.scope === "site" ? "Shared site evidence" : `Account ${e(v.accountId)}`} · ${e(healthState(v.status))}</option>`).join("")}</select><p>${incidentOffset + 1}–${incidentOffset + incidents.length} of ${r.data.total} issues</p><div class="rates-pager"><button type="button" data-issue-prev ${incidentOffset ? "" : "disabled"}>Previous issues</button><button type="button" data-issue-next ${incidentNext == null ? "disabled" : ""}>Next issues</button></div>`
+        ? `<div class="review-case-heading"><h4>Issues at this site</h4><span>${incidentOffset + 1}–${incidentOffset + incidents.length} of ${r.data.total}</span></div><div class="review-cases" role="group" aria-label="Choose an issue">${incidents.map((v,i)=>`<button type="button" data-health-issue="${i}" aria-pressed="${i===0}"><span>${e(v.summary)}</span><small>${e(healthState(v.status))} · ${v.scope === 'site' ? 'Shared site' : 'Account-specific'}</small></button>`).join('')}</div><div class="rates-pager" ${incidentOffset || incidentNext != null ? '' : 'hidden'}><button type="button" data-issue-prev ${incidentOffset ? '' : 'disabled'}>Previous issues</button><button type="button" data-issue-next ${incidentNext == null ? 'disabled' : ''}>Next issues</button></div>`
         : '<p>No issues remain in this view. Close and refresh the queue.</p>';
       if (incidents.length) await loadIncident(incidents[0]);
     } catch (err) {
@@ -131,28 +142,32 @@ export function mountSiteHealth(root, call) {
     }
   }
   function detail() {
+    reviewRoot.remove();
     const r = selected,
       pending = r.status === "pending",
       active = ["pending", "confirmed", "dispatched"].includes(r.status);
     $("[data-health-detail]").innerHTML =
-      `<p><strong>${e(r.systemName)}</strong> · ${e(healthState(r.status))}</p><p>${r.scope === "account" ? "Private account warning. This review does not expose account settings or grant site access." : "This issue applies to connected accounts for this site."}</p>
-      ${r.scope === "account" ? `<p><small>Account reference<br>${e(r.accountId)}</small></p>` : ""}
-      <p>${active ? `Open for <strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong> · since ${e(date(r.firstObservedAt))}` : `First recorded: ${e(date(r.firstObservedAt))}${r.resolvedAt ? ` · Recovered: ${e(date(r.resolvedAt))}` : ""}`}</p><ul>${r.causes.map((c) => `<li>${e(healthCause(c))}</li>`).join("")}</ul><p>Latest evidence: ${e(date(r.latestObservedAt))}</p>
+      `<div class="review-evidence"><div class="review-evidence-heading"><h4>${r.causes.length} finding${r.causes.length===1?'':'s'}</h4><span class="review-status">${e(healthState(r.status))}</span></div>
+      <div class="review-timing"><span>${active ? `Open for <strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong>` : `First recorded ${e(date(r.firstObservedAt))}`}</span><span>Latest evidence ${e(date(r.latestObservedAt))}</span></div>
+      ${r.scope === 'account' ? `<div class="review-scope">Account-specific production warning. The model comparison below uses shared site settings.<details><summary>Account reference</summary>${e(r.accountId)}</details></div>` : ''}
+      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div><div data-review-model-slot></div>
       ${
         active
-          ? `<form data-health-review><label for="health-decision">Decision</label><select id="health-decision" name="decision">${pending ? '<option value="confirm">Confirm physical fault · red</option><option value="dismiss">Dismiss warning</option>' : ""}<option value="resolve">Record manual recovery</option></select>
+          ? `<form class="review-decision" data-health-review><h4>Record your decision</h4><label for="health-decision">Decision</label><select id="health-decision" name="decision">${pending ? '<option value="confirm">Confirm physical fault · red</option><option value="dismiss">Dismiss warning</option>' : ""}<option value="resolve">Record manual recovery</option></select>
       <label for="health-note">Review note</label><textarea id="health-note" name="note" minlength="10" maxlength="2000" required placeholder="Describe what you verified and the supporting evidence."></textarea>
-      <div data-shared-field ${pending ? "" : "hidden"}><label for="health-shared">Evidence summary to email owners and preferred technicians</label><textarea id="health-shared" name="sharedSummary" minlength="10" maxlength="500" ${pending ? "required" : ""} placeholder="Describe the physical fault without private model assumptions."></textarea><small>Confirm red only after verifying a physical fault. This updates the site in Moose and queues email to its connected owners and preferred technicians. Share factual evidence here; review notes and private model settings stay internal.</small></div>
+      <div data-shared-field ${pending ? "" : "hidden"}><label for="health-shared">Summary for owners and technicians</label><textarea id="health-shared" name="sharedSummary" minlength="10" maxlength="500" ${pending ? "required" : ""} placeholder="Describe the physical fault without private model assumptions."></textarea><small>Confirm red only after verifying a physical fault. This updates the site in Moose and queues email to its connected owners and preferred technicians. Share factual evidence here; review notes and private model settings stay internal.</small></div>
       <p data-review-error role="alert" class="access-message"></p><button type="submit">Save review</button></form>`
           : ""
       }
-      <details><summary>Recorded review history</summary><ol>${(r.events || []).map((v) => `<li><strong>${e(v.kind)}</strong> · ${e(v.actorKind)}${v.actorId ? ` (${e(v.actorId)})` : ""} · ${e(date(v.at))}${v.note ? `<p>${e(v.note)}</p>` : ""}</li>`).join("")}</ol></details>`;
+      <details><summary>Review history</summary><ol>${(r.events || []).map((v) => `<li><strong>${e(v.kind)}</strong> · ${e(v.actorKind)}${v.actorId ? ` (${e(v.actorId)})` : ""} · ${e(date(v.at))}${v.note ? `<p>${e(v.note)}</p>` : ""}</li>`).join("")}</ol></details>`;
 
+    $('[data-review-model-slot]').append(reviewRoot);
   }
   function close() {
     if (busy) return;
     ++generation;
     selected = null;
+    reviewModels?.destroy(); reviewModels = null;
     site = null;
     incidents = [];
     connectedAccounts?.destroy();
@@ -213,7 +228,13 @@ export function mountSiteHealth(root, call) {
   }
   const click = (event) => {
     const b = event.target.closest("button");
+    const showModels = event.target.closest('[data-show-models]');
+    if(showModels){event.preventDefault();$('#site-model-comparison').open=true;$('#site-model-comparison').scrollIntoView({behavior:'smooth',block:'start'});return;}
     if (!b || busy) return;
+    if(b.hasAttribute('data-health-issue')) {
+      root.querySelectorAll('[data-health-issue]').forEach(button=>button.setAttribute('aria-pressed',String(button===b)));
+      void loadIncident(incidents[Number(b.dataset.healthIssue)]);return;
+    }
     if (b.hasAttribute("data-health-open"))
       void open(rows[Number(b.dataset.healthOpen)], b);
     else if (b.hasAttribute("data-health-close")) close();
@@ -267,6 +288,7 @@ export function mountSiteHealth(root, call) {
       ++generation;
       keys.clear();
       models.destroy();
+      reviewModels?.destroy();
       connectedAccounts?.destroy();
       dialog.close();
       root.removeEventListener("click", click);
