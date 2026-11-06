@@ -1,10 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.106.2';
 import { selectEnvironment } from '../admin/environments.js';
 const env=selectEnvironment(location.search,location.hostname);
-const client=createClient(env.url,env.key,{auth:{storageKey:`moose-connect-${env.name}-v1`,storage:sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const el=id=>document.getElementById(id);
 let generation=0,session=null,busy=false,current=null,isAdmin=false;
 const requestId=new URLSearchParams(location.search).get('request');
+const linkStorageKey=`moose-setup-${env.name}-${requestId}`;
+const incomingLink=new URLSearchParams(location.hash.slice(1)).get('setup');
+let technicianLink=incomingLink||sessionStorage.getItem(linkStorageKey);
+const client=technicianLink?null:createClient(env.url,env.key,{auth:{storageKey:`moose-connect-${env.name}-v1`,storage:sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+if(incomingLink){sessionStorage.setItem(linkStorageKey,incomingLink);history.replaceState(null,'',location.pathname+location.search);}
+async function linkCall(body){
+ const response=await fetch(`${env.url}/functions/v1/site-connect`,{method:'POST',referrerPolicy:'no-referrer',headers:{'content-type':'application/json',apikey:env.key},body:JSON.stringify({...body,technicianLink})});
+ const data=await response.json();
+ if(!response.ok){if([403,404].includes(response.status))el('request').replaceChildren();const error=Error('Setup unavailable');error.safeMessage=data?.error?.message||'This setup link is unavailable. Ask the owner to send a new invitation.';throw error;}return data;
+}
+
 el('environment').textContent=env.label;
 el('signup').href='/app/';
 const labels={reconnect_required:'Reconnect your portal',awaiting_portal:'Waiting for portal access',authorizing:'Portal connection started',pending_verification:'Waiting for access verification',needs_selection:'Choose the intended site',ready:'Preparing sites',connected:'Connected',denied:'Portal connection needs another attempt',cancelled:'Cancelled',awaiting_inventory:'Waiting for site details'};
@@ -12,11 +22,11 @@ function node(tag,text,parent,cls){const n=document.createElement(tag);if(text)n
 function button(text,parent,fn,secondary=true){const b=node('button',text,parent,secondary?'secondary':'');b.type='button';b.addEventListener('click',()=>run(fn));return b;}
 function disable(value){document.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=value);}
 async function run(fn){if(busy)return;const gen=generation;busy=true;disable(true);el('error').textContent='';try{await fn();}catch(error){if(gen===generation)el('error').textContent=error.safeMessage||'This step could not be completed. Refresh and try again.';}finally{if(gen===generation){busy=false;disable(false);}}}
-async function call(body){const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
+async function call(body){if(technicianLink)return linkCall(body);const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
 async function show(id){const data=await call({action:'status',requestId:id});current=data;render(data);for(const item of el('requests').querySelectorAll('button'))if(item.dataset.requestId===data.id)item.textContent=`${data.siteName||data.vendor} · ${labels[data.status]||'Needs review'}`;}
 async function load(){const gen=generation;const {data}=await client.from('profiles').select('role').eq('id',session.user.id).single();if(gen!==generation)return;isAdmin=data?.role==='admin';const requests=await call({action:'list'});el('requests').replaceChildren();for(const r of requests){const item=button(`${r.siteName||r.vendor} · ${labels[r.status]||'Needs review'}`,el('requests'),()=>show(r.id));item.dataset.requestId=r.id;}if(requestId)await show(requestId);else if(requests.length===1)await show(requests[0].id);else if(!requests.length)el('notice').textContent='No requests are assigned to this account. Ask the owner to select your confirmed email in Moose.';}
 function render(r){const root=el('request');root.replaceChildren();node('h2',r.siteName||'Portal sites',root);node('p',`${r.vendor} · ${r.status==='needs_selection'&&r.accessMode==='own_portal'?'Choose your sites':labels[r.status]||'Connection needs review'}`,root);if(r.address)node('p',r.address,root);if(r.sandbox)node('p','Sandbox · synthetic readings for testing only.',root,'badge');
- if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to ${r.accessMode==='own_portal'?'your':"the requesting owner's"} Moose account.`,root);node('p',r.accessMode==='own_portal'?'You can return to the app to view your sites.':'You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open MOOSE',root);link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
+ if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to ${r.accessMode==='own_portal'?'your':"the requesting owner's"} Moose account.`,root);node('p',technicianLink?'The owner can now see the site in Moose. Review its installation details below, then close this page.':r.accessMode==='own_portal'?'You can return to the app to view your sites.':'You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open MOOSE',root);link.hidden=!!technicianLink;link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
   const setup=node('div',null,root);for(const id of r.connectedIds)button(r.connectedIds.length===1?'Review site details':`Review ${id}`,setup,()=>showSetup(id,setup));return;}
  if(r.status==='cancelled'){node('p','The owner cancelled this request.',root);return;}
  if(r.canConnect&&['awaiting_portal','authorizing','denied','reconnect_required'].includes(r.status)){
@@ -65,11 +75,24 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
 }
 async function accountChanged(next){if(session?.user.id===next?.user.id){session=next;return;}generation++;busy=false;session=next;current=null;isAdmin=false;el('request').replaceChildren();el('requests').replaceChildren();el('error').textContent='';el('notice').textContent='';el('login').hidden=!!session;el('workspace').hidden=!session;el('signout').hidden=!session;el('password').value='';disable(false);if(session)await run(load);}
 el('login').addEventListener('submit',event=>{event.preventDefault();void run(async()=>{const {data,error}=await client.auth.signInWithPassword({email:el('email').value.trim(),password:el('password').value});if(error){const e=Error('Sign in failed');e.safeMessage='Sign-in failed. Check your email and password and verify your email address.';throw e;}await accountChanged(data.session);});});
-el('signout').addEventListener('click',()=>{void run(async()=>{await client.auth.signOut();await accountChanged(null);});});
-client.auth.onAuthStateChange((_event,next)=>{setTimeout(()=>void accountChanged(next),0);});
-const initial=await client.auth.getSession();await accountChanged(initial.data.session);
+el('signout').addEventListener('click',()=>{void run(async()=>{
+ if(technicianLink){sessionStorage.removeItem(linkStorageKey);technicianLink=null;generation++;busy=false;el('request').replaceChildren();el('workspace').hidden=true;el('signout').hidden=true;el('notice').textContent='Setup closed. You can close this tab.';disable(false);return;}
+ await client.auth.signOut();await accountChanged(null);
+});});
+if(technicianLink){
+ el('login').hidden=true;el('workspace').hidden=false;el('requests').hidden=true;
+ el('intro').textContent='Connect the requested site using your manufacturer portal, then review its installation details. No Moose sign-in is needed.';
+ el('signout').hidden=false;el('signout').textContent='Close setup';
+ // Do not read or reuse a Moose account session in capability mode.
+ await run(()=>show(requestId));
+}else{
+ el('login').hidden=false;
+ client.auth.onAuthStateChange((_event,next)=>{setTimeout(()=>void accountChanged(next),0);});
+ const initial=await client.auth.getSession();await accountChanged(initial.data.session);
+}
 
 async function setupRpc(name,args){
+ if(technicianLink)return linkCall({action:'setup',requestId,operation:name,args});
  const gen=generation,user=session?.user.id,token=session?.access_token;
  if(!user||!token)throw Error('Sign in');
  const {data,error}=await client.rpc(name,args).setHeader('Authorization',`Bearer ${token}`);
