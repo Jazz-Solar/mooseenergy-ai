@@ -15,8 +15,8 @@ async function run(fn){if(busy)return;const gen=generation;busy=true;disable(tru
 async function call(body){const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
 async function show(id){const data=await call({action:'status',requestId:id});current=data;render(data);for(const item of el('requests').querySelectorAll('button'))if(item.dataset.requestId===data.id)item.textContent=`${data.siteName||data.vendor} · ${labels[data.status]||'Needs review'}`;}
 async function load(){const gen=generation;const {data}=await client.from('profiles').select('role').eq('id',session.user.id).single();if(gen!==generation)return;isAdmin=data?.role==='admin';const requests=await call({action:'list'});el('requests').replaceChildren();for(const r of requests){const item=button(`${r.siteName||r.vendor} · ${labels[r.status]||'Needs review'}`,el('requests'),()=>show(r.id));item.dataset.requestId=r.id;}if(requestId)await show(requestId);else if(requests.length===1)await show(requests[0].id);else if(!requests.length)el('notice').textContent='No requests are assigned to this account. Ask the owner to select your confirmed email in Moose.';}
-function render(r){const root=el('request');root.replaceChildren();node('h2',r.siteName||'Portal sites',root);node('p',`${r.vendor} · ${labels[r.status]||'Connection needs review'}`,root);if(r.address)node('p',r.address,root);if(r.sandbox)node('p','Sandbox · synthetic readings for testing only.',root,'badge');
- if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to the requesting owner's Moose account.`,root);node('p','You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open MOOSE',root);link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
+function render(r){const root=el('request');root.replaceChildren();node('h2',r.siteName||'Portal sites',root);node('p',`${r.vendor} · ${r.status==='needs_selection'&&r.accessMode==='own_portal'?'Choose your sites':labels[r.status]||'Connection needs review'}`,root);if(r.address)node('p',r.address,root);if(r.sandbox)node('p','Sandbox · synthetic readings for testing only.',root,'badge');
+ if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to ${r.accessMode==='own_portal'?'your':"the requesting owner's"} Moose account.`,root);node('p',r.accessMode==='own_portal'?'You can return to the app to view your sites.':'You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open MOOSE',root);link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
   const setup=node('div',null,root);for(const id of r.connectedIds)button(r.connectedIds.length===1?'Review site details':`Review ${id}`,setup,()=>showSetup(id,setup));return;}
  if(r.status==='cancelled'){node('p','The owner cancelled this request.',root);return;}
  if(r.canConnect&&['awaiting_portal','authorizing','denied','reconnect_required'].includes(r.status)){
@@ -31,17 +31,28 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
  }
  if(!r.canConnect)node('p',r.isOwner?`This request is assigned to ${r.technicianEmail||'the JAZZ team'}. The technician can use this same link to complete it.`:'You can review this request, but only its assigned portal user can complete the portal connection and site selection.',root);
  if(r.canConnect&&r.status==='needs_selection'){
-  node('p','Check the site ID and address, then confirm the site requested by the owner.',root);
+  const many=r.accessMode==='own_portal',selected=new Set();
+  node('p',many?'Choose the sites to add to your account.':'Check the site ID and address, then confirm the site requested by the owner.',root);
   const suggestions=new Map((r.candidates||[]).map(c=>[c.systemId,c]));
-  let selected=null;const ordered=[...(r.sites||[])].sort((a,b)=>(suggestions.get(b.id)?.matchScore||0)-(suggestions.get(a.id)?.matchScore||0));
+  const ordered=[...(r.sites||[])].sort((a,b)=>(suggestions.get(b.id)?.matchScore||0)-(suggestions.get(a.id)?.matchScore||0));
   const recommended=ordered.filter(site=>suggestions.has(site.id)).slice(0,3),recommendedIds=new Set(recommended.map(site=>site.id));
   const remaining=ordered.filter(site=>!recommendedIds.has(site.id));
-  const list=node('fieldset',null,root);node('legend',recommended.length?'Recommended sites':'Choose a site',list);
-  const addSite=(site,parent)=>{const card=node('div',null,parent,'site'),label=node('label',null,card),radio=node('input',null,label);radio.type='radio';radio.name='site';radio.value=site.id;radio.addEventListener('change',()=>{selected=site.id;});node('span',site.name,label);node('small',site.id,card);const address=['street','city','state','zipCode','country'].map(k=>site.address?.[k]).filter(Boolean).join(', ');if(address)node('small',address,card);if(Number.isFinite(site.latitude)&&Number.isFinite(site.longitude))node('small',`${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`,card);};
+  let allButton,count,connectButton;
+  const update=()=>{if(many){count.textContent=`${selected.size} selected`;connectButton.textContent=selected.size?`Connect ${selected.size} site${selected.size===1?'':'s'}`:'Connect selected sites';allButton.textContent=selected.size===ordered.length&&ordered.length?'Clear selection':'Select all sites';}};
+  if(many)allButton=button('Select all sites',root,async()=>{
+   const clear=selected.size===ordered.length;selected.clear();if(!clear)for(const site of ordered)selected.add(site.id);
+   for(const input of root.querySelectorAll('input[name=site]'))input.checked=selected.has(input.value);update();
+  });
+  const list=node('fieldset',null,root);node('legend',recommended.length?'Recommended sites':many?'Choose sites':'Choose a site',list);
+  const addSite=(site,parent)=>{const card=node('div',null,parent,'site'),label=node('label',null,card),input=node('input',null,label);input.type=many?'checkbox':'radio';input.name='site';input.value=site.id;input.addEventListener('change',()=>{if(!many)selected.clear();if(input.checked)selected.add(site.id);else selected.delete(site.id);update();});node('span',site.name,label);node('small',site.id,card);const address=['street','city','state','zipCode','country'].map(k=>site.address?.[k]).filter(Boolean).join(', ');if(address)node('small',address,card);if(Number.isFinite(site.latitude)&&Number.isFinite(site.longitude))node('small',`${site.latitude.toFixed(5)}, ${site.longitude.toFixed(5)}`,card);};
   for(const site of recommended)addSite(site,list);
-  if(!recommended.length)node('p','No recommended match. Expand all sites to choose one.',list);
+  if(!recommended.length)node('p',many?'No recommended match. Expand all sites to choose.':'No recommended match. Expand all sites to choose one.',list);
   if(remaining.length){const more=node('details',null,list,'other-sites');node('summary',`${recommended.length?'All other sites':'All sites'} (${remaining.length})`,more);for(const site of remaining)addSite(site,more);}
-  button('Connect the selected site',root,async()=>{if(!selected){const e=Error('Select a site');e.safeMessage='Choose the intended site first.';throw e;}await call({action:'select',requestId:r.id,siteId:selected});await show(r.id);},false);
+  if(many){count=node('p','0 selected',root);count.setAttribute('role','status');count.setAttribute('aria-live','polite');}
+  connectButton=button(many?'Connect selected sites':'Connect the selected site',root,async()=>{
+   if(!selected.size){const e=Error('Select a site');e.safeMessage=many?'Choose at least one site first.':'Choose the intended site first.';throw e;}
+   await call(many?{action:'selectMany',requestId:r.id,siteIds:[...selected].sort(),selectionVersion:r.selectionVersion}:{action:'select',requestId:r.id,siteId:[...selected][0]});await show(r.id);
+  },false);
  }
  if(isAdmin&&r.status==='pending_verification'&&r.verificationMethod!=='enphase'){
   node('hr',null,root);node('h3','Staff access verification',root);node('p','Record only sites whose access is verified for this request and portal user. For an owner portal, verify the complete authorized list. A matching name, address, or successful redirect is insufficient.',root);
