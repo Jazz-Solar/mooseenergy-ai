@@ -15,6 +15,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromiu
 try{for(const width of [320,390,1440]){
  const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage(),errors=[],pilotCalls=[];let failOnce=width===320,conflictNext=false;const state=structuredClone(data),history=[];
  page.on('pageerror',e=>errors.push(e.message));
+ await context.route('https://mail.google.com/**',route=>route.fulfill({contentType:'text/html',body:'<title>Gmail draft fixture</title><p>Draft preview</p>'}));
  await context.route('https://esm.sh/**',route=>route.fulfill({contentType:'text/javascript',body:authStub}));
  await context.route('**/functions/v1/**',route=>{const body=route.request().postDataJSON(),name=new URL(route.request().url()).pathname.split('/').at(-1);
   if(name==='admin-stats'&&body.view?.startsWith('pilot')){pilotCalls.push(body);
@@ -26,6 +27,20 @@ try{for(const width of [320,390,1440]){
  if(width<900)await page.getByRole('button',{name:'Menu',exact:true}).click();await page.locator('#admin-nav').getByRole('button',{name:'Pilot',exact:true}).click();
  if(width===320)await page.getByRole('button',{name:'Try again',exact:true}).click();
  await page.locator('.pilot-table').waitFor();assert.equal(await page.locator('.pilot-table tbody tr').count(),25);assert.equal(await page.locator('[data-pilot-count]').textContent(),'35 of 35 contacts');assert.equal(await page.locator('[data-pilot-sort=priority]').locator('..').getAttribute('aria-sort'),'ascending');
+ const draftLink=page.locator('[data-pilot-draft=C006]');
+ const composeURL=new URL(await draftLink.getAttribute('href'));
+ assert.equal(composeURL.searchParams.get('to'),'sample5@example.invalid');
+ assert.match(composeURL.searchParams.get('body'),/Hi Sample Person 6,/);
+ assert.ok(!composeURL.searchParams.get('body').includes('Source notes'));
+ const writesBefore=pilotCalls.filter(c=>c.view==='pilot_update').length;
+ const popupPromise=context.waitForEvent('page');await draftLink.click();const popup=await popupPromise;
+ await popup.waitForLoadState('domcontentloaded');assert.equal(await popup.title(),'Gmail draft fixture');
+ await popup.close();assert.equal(pilotCalls.filter(c=>c.view==='pilot_update').length,writesBefore);
+ assert.equal(state.contacts[5].tracking.stage,'not_contacted');
+ await page.locator('#pilot-search').fill('C004');
+ assert.equal(await page.locator('[data-pilot-contact=C004] .pilot-draft-unavailable button').isDisabled(),true);
+ assert.equal(await page.locator('[data-pilot-draft=C004]').count(),0);
+ await page.locator('[data-pilot-reset]').click();
  await page.locator('[data-pilot-next]').click();assert.equal(await page.locator('.pilot-table tbody tr').count(),10);
  await page.locator('#pilot-search').fill('held roof');assert.equal(await page.locator('.pilot-table tbody tr').count(),1);assert.match(await page.locator('[data-pilot-page]').textContent(),/^1–1/);await page.locator('[data-pilot-open=C004]').last().click();await page.locator('dialog[open]').waitFor();assert.match(await page.locator('[data-pilot-detail]').textContent(),/On hold · original review note/);assert.match(await page.locator('[data-pilot-detail]').textContent(),/No final decision recorded/);assert.equal(await page.locator('.pilot-sites li').count(),4);assert.equal(await page.locator('.pilot-dialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true);await page.screenshot({path:`${artifacts}/pilot-contact-${width}.png`,fullPage:true});await page.locator('#pilot-edit-assignee').selectOption('ketan');await page.locator('#pilot-edit-stage').selectOption('follow_up');await page.locator('#pilot-edit-priority').selectOption('1');await page.locator('#pilot-edit-note').fill('Call next week');await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.locator('.pilot-dialog').waitFor({state:'hidden'});assert.match(await page.locator('[data-pilot-contact=C004]').textContent(),/Ketan/);assert.match(await page.locator('[data-pilot-contact=C004]').textContent(),/Follow up/);
  await page.reload();await page.getByLabel('EMAIL',{exact:true}).fill('preview@example.invalid');await page.getByLabel('PASSWORD',{exact:true}).fill('fixture');await page.getByRole('button',{name:'Sign In',exact:true}).click();await page.locator('.pilot-table').waitFor();await page.locator('#pilot-search').fill('C004');assert.match(await page.locator('[data-pilot-contact=C004]').textContent(),/Ketan/);await page.locator('[data-pilot-open=C004]').last().click();assert.equal(await page.locator('#pilot-edit-note').inputValue(),'Call next week');await page.locator('[data-pilot-history] summary').click();await page.getByText('P1 · Ketan · Follow up',{exact:true}).waitFor();await page.keyboard.press('Escape');assert.equal(await page.locator('dialog[open]').count(),0);
