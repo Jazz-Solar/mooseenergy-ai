@@ -24,6 +24,9 @@ export function pilotEmailDraft(contact) {
   const body=[greeting,'',existing
     ?'We would like to help you get more from your Moose account and connect any solar systems you would like to monitor.'
     :'We are inviting solar owners to use Moose to see production and system information in one place.',
+    '', 'Download Moose:',
+    'Android (Google Play): https://play.google.com/store/apps/details?id=com.moose.solar',
+    'iOS (App Store): https://apps.apple.com/ca/app/moose-solar/id6756133852',
     '', 'Would you like Glani to help you connect your system? If so, please let us know whether you use iPhone or Android and whether you or your installer manages the solar portal.',
     '', 'Reply here and we will introduce you to Glani for the next steps.', '', 'Thanks,'].join('\n');
   const gmail=new URL('https://mail.google.com/mail/');
