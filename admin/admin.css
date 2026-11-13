@@ -219,3 +219,13 @@
 .growth-card input[type=range]::-webkit-slider-thumb { appearance:none; width:12px; height:12px; border-radius:50%; margin-top:-5px; background:#d1be8a; border:2px solid #18191c; }
 .growth-card input[type=range]::-moz-range-track { height:2px; background:#454851; }
 .growth-card input[type=range]::-moz-range-thumb { width:9px; height:9px; border-radius:50%; background:#d1be8a; border:2px solid #18191c; }
+
+/* Shared site editor */
+.attribute-dialog{width:min(760px,calc(100vw - 32px));max-height:90dvh;overflow:auto}
+.attribute-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;margin:16px 0}
+.attribute-grid small{display:block;color:#59636d;font-size:12px;margin-top:4px}
+.attribute-dialog input,.attribute-dialog select{width:100%;box-sizing:border-box}
+.attribute-rates{margin-top:28px;border-top:1px solid #e4e7eb;padding-top:18px}
+.attribute-rates>summary,.attribute-dialog summary{cursor:pointer;font-weight:600;padding:8px 0}
+@media(max-width:520px){.attribute-grid{grid-template-columns:1fr}.attribute-dialog{width:calc(100vw - 20px)}}
+.health-dialog .fault-card small{overflow-wrap:anywhere}
