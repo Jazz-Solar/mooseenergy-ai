@@ -18,6 +18,7 @@ export const healthCause = c => {
   if(c.kind === 'physical') return c.summary || 'Staff observed a physical fault.';
   return 'Scheduled monitoring readings are unavailable.';
 };
+export const vendorEvidenceCards = evidence => Array.isArray(evidence) && evidence.length ? `<section class="review-evidence"><h4>Manufacturer evidence</h4><p>Shared meanings below support review. They do not confirm a physical fault.</p>${evidence.map(v=>`<article class="fault-card"><div><h4>${e(v.label)} <small>${e(v.condition)}</small></h4><p>${e(v.meaning)}</p><p>${e(v.guidance)}</p><small>${e(v.source)} · Code ${e(v.code)}${v.namespace?` · ${e(v.namespace)}`:''} · ${v.state==='reported'?'Recent message; current state unknown':'Open at last observation'}</small><p>${e(v.providerMessage)}</p>${v.occurrences>1?`<small>${Number(v.occurrences)} manufacturer reports</small>`:''}<small>Reported ${e(date(v.startedAt))} · Observed ${e(date(v.observedAt))}</small>${v.deviceIds?.length?`<details><summary>Device references</summary>${v.deviceIds.map(id=>`<small>${e(id)}</small>`).join('')}</details>`:''}</div></article>`).join('')}</section>` : '';
 const faultCard = c => {
   const performance = c.performance || {};
   const power = value => typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString()} W` : null;
@@ -150,7 +151,7 @@ export function mountSiteHealth(root, call) {
       `<div class="review-evidence"><div class="review-evidence-heading"><h4>${r.causes.length} finding${r.causes.length===1?'':'s'}</h4><span class="review-status">${e(healthState(r.status))}</span></div>
       <div class="review-timing"><span>${active ? `Open for <strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong>` : `First recorded ${e(date(r.firstObservedAt))}`}</span><span>Latest evidence ${e(date(r.latestObservedAt))}</span></div>
       ${r.scope === 'account' ? `<div class="review-scope">Account-specific production warning. The model comparison below uses shared site settings.<details><summary>Account reference</summary>${e(r.accountId)}</details></div>` : ''}
-      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div><div data-review-model-slot></div>
+      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div>${vendorEvidenceCards(r.providerEvidence)}<div data-review-model-slot></div>
       ${
         active
           ? `<form class="review-decision" data-health-review><h4>Record your decision</h4><label for="health-decision">Decision</label><select id="health-decision" name="decision">${pending ? '<option value="confirm">Confirm physical fault · red</option><option value="dismiss">Dismiss warning</option>' : ""}<option value="resolve">Record manual recovery</option></select>

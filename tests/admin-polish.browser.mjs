@@ -22,7 +22,7 @@ try{for(const width of [320,390,1440]){
  const nav=async name=>{if(width<900)await page.getByRole('button',{name:'Menu',exact:true}).click();await page.locator('#admin-nav').getByRole('button',{name,exact:true}).click();};
  await nav('Sites');assert.equal(await page.getByRole('tab').count(),3);await page.getByRole('tab',{name:'Health',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'Alerts',exact:true}).getAttribute('aria-selected'),'true');
  await page.getByRole('region',{name:'Site alerts table',exact:true}).waitFor();await page.screenshot({path:`${artifacts}/sites-alerts-${width}.png`,fullPage:true});
- await page.keyboard.press('End');assert.equal(await page.getByRole('tab',{name:'FIT rates',exact:true}).getAttribute('aria-selected'),'true');await page.getByRole('button',{name:'Edit rate for Community centre',exact:true}).waitFor();
+ await page.keyboard.press('End');assert.equal(await page.getByRole('tab',{name:'Site attributes',exact:true}).getAttribute('aria-selected'),'true');await page.getByRole('button',{name:'Edit attributes',exact:true}).waitFor();
  await page.getByRole('tab',{name:'Health',exact:true}).click();await page.getByRole('button',{name:'Review health for Community centre',exact:true}).click();
  await page.locator('dialog .model-verdict').waitFor();assert.match(await page.locator('dialog .models-caption').textContent(),/Community centre/);assert.equal(await page.locator('dialog .fault-card').count(),2);
  assert.match(await page.locator('dialog .model-verdict').textContent(),/Models agree/);assert.equal(await page.locator('dialog [data-model-site]').isVisible(),false);
