@@ -1,3 +1,4 @@
+import { mountVendorErrorLog } from './vendor-error-log.js?v=20261113-1';
 import { providerSiteLink, mountConnectedAccounts } from './site-context.js?v=20261009-site-context-1';
 import { escapeHtml as e } from "./site-access.js?v=20260914-fit-rates-1";
 import { mountHealthModels } from './health-models.js?v=20261105-1';
@@ -52,12 +53,19 @@ export function mountSiteHealth(root, call) {
     returnFocus = null;
   const keys = new Map();
   root.innerHTML = `<div class="section-intro"><p>Sites that need your attention</p><a href="#site-model-comparison" data-show-models>Compare models <span aria-hidden="true">↗</span></a></div>
-    <form data-health-filter class="rates-toolbar"><div><label for="health-status">Status</label><select id="health-status"><option value="active">Open issues</option><option value="yellow">Needs review</option><option value="red">Confirmed faults</option><option value="resolved">Recovered</option><option value="dismissed">Dismissed</option></select></div><button>Refresh queue</button></form>
+    <div class="review-cases health-view-switch" role="group" aria-label="Health view"><button type="button" data-health-view="queue" aria-pressed="true">Review queue</button><button type="button" data-health-view="log" aria-pressed="false">Error log</button></div>
+    <div data-health-queue><form data-health-filter class="rates-toolbar"><div><label for="health-status">Status</label><select id="health-status"><option value="active">Open issues</option><option value="yellow">Needs review</option><option value="red">Confirmed faults</option><option value="resolved">Recovered</option><option value="dismissed">Dismissed</option></select></div><button>Refresh queue</button></form>
     <p data-health-message role="status" class="access-message"></p><div data-health-rows></div><div class="rates-pager"><button type="button" data-health-prev>Previous</button><span data-health-page></span><button type="button" data-health-next>Next</button></div>
-    <details class="site-model-comparison" id="site-model-comparison"><summary>Digital Twin vs GCP <span>Compare a completed day</span></summary><div data-health-models></div></details>
+    <details class="site-model-comparison" id="site-model-comparison"><summary>Digital Twin vs GCP <span>Compare a completed day</span></summary><div data-health-models></div></details></div><section data-vendor-error-log hidden></section>
     <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><div><span class="eyebrow">Health review</span><h3 id="health-title">Review site health</h3></div><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-site-link></div><div data-health-issues></div><div data-health-detail></div><div data-review-models></div><div data-health-accounts></div></dialog>`;
   const $ = (s) => root.querySelector(s),
     dialog = $("dialog");
+  const errorLog = mountVendorErrorLog($('[data-vendor-error-log]'), call);
+  function viewLog(show, search) {
+    $('[data-health-queue]').hidden=show; $('[data-vendor-error-log]').hidden=!show;
+    root.querySelectorAll('[data-health-view]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.healthView==='log')===show)));
+    if(show)errorLog.show(search);
+  }
   const reviewRoot = $('[data-review-models]');
   const models = mountHealthModels($('[data-health-models]'), call);
   const message = (text) => {
@@ -67,7 +75,7 @@ export function mountSiteHealth(root, call) {
     rows = data.items;
     next = data.nextOffset;
     $("[data-health-rows]").innerHTML = rows.length
-      ? `<div class="access-table-scroll" role="region" aria-label="Site health queue" tabindex="0"><table class="access-table"><thead><tr><th>Site</th><th>Status and issues</th><th>Open for</th><th>Latest evidence</th><th></th></tr></thead><tbody>${rows.map((r, index) => `<tr><td><strong>${e(r.systemName)}</strong>${providerSiteLink(r.systemId, r.systemName)}<small>${Number(r.issueCount)} issue${r.issueCount === 1 ? "" : "s"}</small></td><td><strong>${e(healthState(r.status))}</strong><small>${e((r.summaries || []).join(" · "))}</small></td><td>${["yellow", "red"].includes(r.status) ? `<strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong><small>Since ${e(date(r.firstObservedAt))}</small>` : "Closed · see issue history"}</td><td>${e(date(r.latestObservedAt))}</td><td><button type="button" data-health-open="${index}" aria-label="Review health for ${e(r.systemName)}">Review site</button></td></tr>`).join("")}</tbody></table></div>`
+      ? `<div class="access-table-scroll" role="region" aria-label="Site health queue" tabindex="0"><table class="access-table"><thead><tr><th>Site</th><th>Status and issues</th><th>Open for</th><th>Latest evidence</th><th></th></tr></thead><tbody>${rows.map((r, index) => `<tr><td><strong>${e(r.systemName)}</strong>${providerSiteLink(r.systemId, r.systemName)}<small>${Number(r.issueCount)} issue${r.issueCount === 1 ? "" : "s"}</small></td><td><strong>${e(healthState(r.status))}</strong><small>${e((r.summaries || []).join(" · "))}</small></td><td>${["yellow", "red"].includes(r.status) ? `<strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong><small>Since ${e(date(r.firstObservedAt))}</small>` : "Closed · see issue history"}</td><td>${e(date(r.latestObservedAt))}</td><td><button type="button" data-health-open="${index}" aria-label="Review health for ${e(r.systemName)}">Review site</button><button type="button" data-site-error-log="${index}" aria-label="Error log for ${e(r.systemName)}">Error log</button></td></tr>`).join("")}</tbody></table></div>`
       : '<div class="access-empty">No sites match this status.</div>';
     $("[data-health-page]").textContent = rows.length
       ? `${offset + 1}–${offset + rows.length} of ${data.total} sites`
@@ -230,8 +238,10 @@ export function mountSiteHealth(root, call) {
   const click = (event) => {
     const b = event.target.closest("button");
     const showModels = event.target.closest('[data-show-models]');
-    if(showModels){event.preventDefault();$('#site-model-comparison').open=true;$('#site-model-comparison').scrollIntoView({behavior:'smooth',block:'start'});return;}
+    if(showModels){event.preventDefault();viewLog(false);$('#site-model-comparison').open=true;$('#site-model-comparison').scrollIntoView({behavior:'smooth',block:'start'});return;}
     if (!b || busy) return;
+    if(b.hasAttribute('data-health-view')){viewLog(b.dataset.healthView==='log');return;}
+    if(b.hasAttribute('data-site-error-log')){viewLog(true,rows[Number(b.dataset.siteErrorLog)].systemId);return;}
     if(b.hasAttribute('data-health-issue')) {
       root.querySelectorAll('[data-health-issue]').forEach(button=>button.setAttribute('aria-pressed',String(button===b)));
       void loadIncident(incidents[Number(b.dataset.healthIssue)]);return;
@@ -289,6 +299,7 @@ export function mountSiteHealth(root, call) {
       ++generation;
       keys.clear();
       models.destroy();
+      errorLog.destroy();
       reviewModels?.destroy();
       connectedAccounts?.destroy();
       dialog.close();
