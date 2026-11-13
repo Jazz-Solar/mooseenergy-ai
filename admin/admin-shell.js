@@ -6,7 +6,7 @@ const pages = [
   ['feedback','Feedback','M3 4h18v13H8l-5 4z M7 8h10 M7 12h7'],
 ];
 export const groups = {
-  sites: [['health','Health'], ['alerts','Alerts'], ['rates','FIT rates']],
+  sites: [['health','Health'], ['alerts','Alerts'], ['rates','Site attributes']],
   people: [['users','Users'], ['reviews','Requests'], ['mappings','Assignments'], ['assignments','Active access'], ['history','History']],
 };
 const groupFor = id => Object.keys(groups).find(group => groups[group].some(([view]) => view === id)) || id;
