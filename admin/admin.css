@@ -244,3 +244,13 @@
   [data-error-rows] .access-table td { display:block; width:auto; max-width:none; padding:12px 16px; }
   [data-error-rows] .access-table td:first-child { border-top:0; }
 }
+
+/* A selected site's known conditions stay visible even with an empty code log. */
+.vendor-site-context { margin: 20px 0; padding: 20px; border: 1px solid var(--border, #34363b); border-radius: 14px; font-size: 14px; line-height: 1.5; }
+.vendor-site-context h3 { margin: 0 0 6px; font-size: 20px; }
+.vendor-site-context p { margin: 10px 0; }
+.vendor-site-context small { display: block; }
+.vendor-site-context > details { margin: 16px 0; }
+.vendor-site-context > button { margin: 12px 0; }
+.vendor-site-context .fault-list { margin: 16px 0; }
+[data-error-check-detail] li { margin: 16px 0; }
