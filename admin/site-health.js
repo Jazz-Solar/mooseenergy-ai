@@ -1,4 +1,4 @@
-import { mountVendorErrorLog } from './vendor-error-log.js?v=20261113-1';
+import { mountVendorErrorLog, healthCheckCodes } from './vendor-error-log.js?v=20261116-1';
 import { providerSiteLink, mountConnectedAccounts } from './site-context.js?v=20261009-site-context-1';
 import { escapeHtml as e } from "./site-access.js?v=20260914-fit-rates-1";
 import { mountHealthModels } from './health-models.js?v=20261105-1';
@@ -60,7 +60,7 @@ export function mountSiteHealth(root, call) {
     <dialog class="rate-dialog health-dialog" aria-labelledby="health-title"><div class="access-dialog-top"><div><span class="eyebrow">Health review</span><h3 id="health-title">Review site health</h3></div><button type="button" data-health-close aria-label="Close health review">Close</button></div><div data-health-site-link></div><div data-health-issues></div><div data-health-detail></div><div data-review-models></div><div data-health-accounts></div></dialog>`;
   const $ = (s) => root.querySelector(s),
     dialog = $("dialog");
-  const errorLog = mountVendorErrorLog($('[data-vendor-error-log]'), call);
+  const errorLog = mountVendorErrorLog($('[data-vendor-error-log]'), call, {onReview:(site,button)=>open(site,button)});
   function viewLog(show, search) {
     $('[data-health-queue]').hidden=show; $('[data-vendor-error-log]').hidden=!show;
     root.querySelectorAll('[data-health-view]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.healthView==='log')===show)));
@@ -159,7 +159,7 @@ export function mountSiteHealth(root, call) {
       `<div class="review-evidence"><div class="review-evidence-heading"><h4>${r.causes.length} finding${r.causes.length===1?'':'s'}</h4><span class="review-status">${e(healthState(r.status))}</span></div>
       <div class="review-timing"><span>${active ? `Open for <strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong>` : `First recorded ${e(date(r.firstObservedAt))}`}</span><span>Latest evidence ${e(date(r.latestObservedAt))}</span></div>
       ${r.scope === 'account' ? `<div class="review-scope">Account-specific production warning. The model comparison below uses shared site settings.<details><summary>Account reference</summary>${e(r.accountId)}</details></div>` : ''}
-      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div>${vendorEvidenceCards(r.providerEvidence)}<div data-review-model-slot></div>
+      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div>${r.providerCheck ? healthCheckCodes(r.providerCheck) : vendorEvidenceCards(r.providerEvidence)}<div data-review-model-slot></div>
       ${
         active
           ? `<form class="review-decision" data-health-review><h4>Record your decision</h4><label for="health-decision">Decision</label><select id="health-decision" name="decision">${pending ? '<option value="confirm">Confirm physical fault · red</option><option value="dismiss">Dismiss warning</option>' : ""}<option value="resolve">Record manual recovery</option></select>
