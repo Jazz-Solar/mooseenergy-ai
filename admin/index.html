@@ -128,9 +128,11 @@
       </section>
       <section data-admin-section="feedback" class="admin-page" hidden>
       <h2>Feedback</h2>
+      <p class="dim">New bugs go to Jira. Status and priority follow Jira; this view checks saved updates every five minutes.</p>
+      <button type="button" data-feedback-refresh>Refresh reports</button> <span class="dim" role="status" data-feedback-refresh-status></span>
       <div class="card scroll" style="padding:6px 10px">
         <table id="fb"><thead><tr>
-          <th>WHEN</th><th>WHO</th><th>TYPE</th><th>MESSAGE</th><th>HUBSPOT</th>
+          <th>WHEN</th><th>WHO</th><th>TYPE</th><th>MESSAGE</th><th>DELIVERY / STATUS</th>
         </tr></thead><tbody></tbody></table>
       </div>
       </section>
@@ -148,6 +150,7 @@
     import { mountAdminShell } from './admin-shell.js?v=20261113-1';
     import { mountPilot } from './pilot.js?v=20261105-outreach-1';
     import { mountOverview } from './overview.js?v=20261105-1';
+    import { feedbackDeliveryCell, feedbackMessageCell, bindFeedbackPhotos, mountFeedbackRefresh } from './feedback.js?v=20261120-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search, location.hostname);
     const localProxy = !!document.querySelector('meta[name="moose-local-proxy"]');
@@ -157,7 +160,7 @@
       storageKey: environment.storageKey, detectSessionInUrl: false,
     }});
     const boundary = createSessionBoundary();
-    let workspace = null, rates = null, health = null, alerts = null, overview = null, pilot = null;
+    let workspace = null, rates = null, health = null, alerts = null, overview = null, pilot = null, feedbackRefresh = null;
     const shell = mountAdminShell(page => {
       if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false || pilot?.canLeave?.() === false) return false;
       const access = ['reviews','mappings','assignments','history'].includes(page);
@@ -168,6 +171,7 @@
       document.querySelectorAll('[data-admin-section]').forEach(section => section.hidden = section.dataset.adminSection !== (access ? 'access' : page));
       if (page === 'pilot') void pilot?.show();
       if (page === 'alerts') void alerts?.refresh();
+      if (page === 'feedback') void feedbackRefresh?.refresh();
       return true;
     });
     document.getElementById('admin-environment').textContent = environment.label;
@@ -189,6 +193,7 @@
 
     function clearStaffData() {
       boundary.reset();
+      feedbackRefresh?.destroy(); feedbackRefresh = null;
       DATA = null;
       workspace?.destroy(); workspace = null;
       rates?.destroy(); rates = null; health?.destroy(); health = null; alerts?.destroy(); alerts = null; shell.reset();
@@ -255,6 +260,11 @@
       overview?.destroy(); overview = mountOverview($('overview-content'), d);
       renderUsers(d);
       renderFeedback(d.feedback);
+      feedbackRefresh?.destroy();
+      feedbackRefresh=mountFeedbackRefresh(document.querySelector('[data-admin-section="feedback"]'),callFn,rows=>{
+        DATA.feedback=rows;for(const u of DATA.users)u.feedback_count=rows.filter(f=>f.user_id===u.id).length;
+        renderFeedback(rows);renderUsers(DATA);$('drawer').replaceChildren();
+      });
     }
 
     function renderUsers(d) {
@@ -277,20 +287,21 @@
     }
 
     function showUserFeedback(u) {
-      const mine = (DATA.feedback ?? []).filter(f => (f.user_id && f.user_id === u.id) || (f.email && f.email === u.email));
+      const mine = (DATA.feedback ?? []).filter(f => f.user_id === u.id);
       const drawer = $('drawer');
       drawer.style.display = 'block';
       drawer.innerHTML = `<div class="card">
         <button class="closex" id="drawerClose">Close</button>
         <h2 style="margin-top:0">Feedback from ${esc(u.name) || esc(u.email)} <span class="dimmer">(${mine.length})</span></h2>
-        <table><thead><tr><th>WHEN</th><th>TYPE</th><th>MESSAGE</th><th>HUBSPOT</th></tr></thead><tbody>
+        <table><thead><tr><th>WHEN</th><th>TYPE</th><th>MESSAGE</th><th>DELIVERY / STATUS</th></tr></thead><tbody>
         ${mine.map(f => `<tr>
           <td class="dim">${fmt(f.at)}</td>
           <td>${esc(f.category)}</td>
-          <td><b>${esc(f.subject) || '—'}</b><div class="fb-msg">${esc(f.message)}</div></td>
-          <td>${f.hubspot_ok ? `<span class="ok">✓ ${esc(f.ticket)}</span>` : '<span class="fail">✗ not delivered</span>'}</td>
+          <td>${feedbackMessageCell(f)}</td>
+          <td>${feedbackDeliveryCell(f)}</td>
         </tr>`).join('')}
         </tbody></table></div>`;
+      bindFeedbackPhotos(drawer,callFn,SUPABASE_URL);
       $('drawerClose').onclick = () => { drawer.style.display = 'none'; };
       drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -302,10 +313,11 @@
             <td class="dim">${fmt(f.at)}</td>
             <td class="dim">${esc(f.email)}</td>
             <td>${esc(f.category)}</td>
-            <td><b>${esc(f.subject) || '—'}</b><div class="fb-msg">${esc(f.message)}</div></td>
-            <td>${f.hubspot_ok ? `<span class="ok">✓ ${esc(f.ticket)}</span>` : '<span class="fail">✗ not delivered</span>'}</td>
+            <td>${feedbackMessageCell(f)}</td>
+            <td>${feedbackDeliveryCell(f)}</td>
           </tr>`).join('')
         : '<tr><td colspan="5" class="dim">No feedback yet.</td></tr>';
+      bindFeedbackPhotos($('fb'),callFn,SUPABASE_URL);
     }
 
     $('signin').onclick = async () => {
