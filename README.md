@@ -21,7 +21,7 @@ this website. Website releases merge `dev` into `main` and use GitHub Pages.
 |---|---|
 | `index.html` | The main site (product, team, First Nations partnerships) |
 | `admin.html` + `admin/` | **Staff admin portal** — overview trends, Sites, People & access, and feedback. Sign-in gated server-side to Moose staff accounts; safe to be in a public repo because all data access happens through an authenticated Supabase edge function |
-| `app/` | Redirect page for the Android APK download (`mooseenergy.ai/app`) |
+| `app/` | App download page (`mooseenergy.ai/app`): sends phones to the App Store or Google Play, shows both QR codes on desktop |
 | `news.html` | News/announcements |
 | `register.html` | Interest / registration page |
 | `privacy-policy.html` | Privacy policy |
