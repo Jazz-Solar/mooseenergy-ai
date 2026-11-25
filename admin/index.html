@@ -68,7 +68,7 @@
     @media (max-width:640px){ .hide-sm { display:none; } .pf { grid-template-columns:1fr; } }
   </style>
   <link rel="stylesheet" href="./site-access.css?v=20260915-review-hints-1" />
-  <link rel="stylesheet" href="./admin.css?v=20261116-error-log-1" />
+  <link rel="stylesheet" href="./admin.css?v=20261124-people-1" />
   <link rel="stylesheet" href="./alert-monitoring.css?v=20261105-1" />
   <link rel="stylesheet" href="./health-models.css?v=20261105-1" />
   <link rel="stylesheet" href="./pilot.css?v=20261105-outreach-1" />
@@ -114,13 +114,7 @@
       <section id="pilot" data-admin-section="pilot" class="admin-page" hidden></section>
       <section id="people-users" data-admin-section="users" class="admin-page" hidden>
       <h2>Users</h2>
-      <div class="card scroll" style="padding:6px 10px">
-        <table id="users"><thead><tr>
-          <th>USER</th><th>ROLE</th><th class="hide-sm">SYSTEMS</th>
-          <th class="right">LOGINS 7D</th><th class="right hide-sm">30D</th>
-          <th class="right">FEEDBACK</th><th class="hide-sm">LAST SEEN</th><th class="hide-sm">JOINED</th>
-        </tr></thead><tbody></tbody></table>
-      </div>
+      <div id="people-directory"></div>
 
       <!-- per-user feedback drawer -->
       <div class="drawer" id="drawer" style="display:none"></div>
@@ -149,7 +143,8 @@
     import { mountSiteAttributes } from './site-attributes.js?v=20261113-1';
     import { mountAdminShell } from './admin-shell.js?v=20261113-1';
     import { mountPilot } from './pilot.js?v=20261105-outreach-1';
-    import { mountOverview } from './overview.js?v=20261105-1';
+    import { mountOverview } from './overview.js?v=20261124-sites-1';
+    import { mountPeople } from './people.js?v=20261124-1';
     import { feedbackDeliveryCell, feedbackMessageCell, bindFeedbackPhotos, mountFeedbackRefresh } from './feedback.js?v=20261120-1';
     import { createSessionBoundary } from './session-boundary.js';
     const environment = selectEnvironment(location.search, location.hostname);
@@ -160,7 +155,7 @@
       storageKey: environment.storageKey, detectSessionInUrl: false,
     }});
     const boundary = createSessionBoundary();
-    let workspace = null, rates = null, health = null, alerts = null, overview = null, pilot = null, feedbackRefresh = null;
+    let workspace = null, rates = null, health = null, alerts = null, overview = null, people = null, pilot = null, feedbackRefresh = null;
     const shell = mountAdminShell(page => {
       if (workspace?.canLeave?.() === false || rates?.canLeave?.() === false || health?.canLeave?.() === false || pilot?.canLeave?.() === false) return false;
       const access = ['reviews','mappings','assignments','history'].includes(page);
@@ -185,7 +180,6 @@
 
     const $ = (id) => document.getElementById(id);
     const fmt = (iso) => iso ? new Date(iso).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
-    const fmtD = (iso) => iso ? new Date(iso).toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : '—';
     const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }) : '—';
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -201,7 +195,8 @@
       $('site-access').replaceChildren();
       pilot?.destroy(); pilot = null;
       overview?.destroy(); overview = null; $('drawer').replaceChildren();
-      for (const id of ['users','fb']) $(id).querySelector('tbody').replaceChildren();
+      people?.destroy(); people = null;
+      $('fb').querySelector('tbody').replaceChildren();
       $('dash').style.display = 'none';
       $('login').style.display = 'block';
       $('signout').style.display = 'none';
@@ -258,31 +253,12 @@
       $('subtitle').textContent = session.user.email;
 
       overview?.destroy(); overview = mountOverview($('overview-content'), d);
-      renderUsers(d);
+      people?.destroy(); people = mountPeople($('people-directory'), d, showUserFeedback);
       renderFeedback(d.feedback);
       feedbackRefresh?.destroy();
       feedbackRefresh=mountFeedbackRefresh(document.querySelector('[data-admin-section="feedback"]'),callFn,rows=>{
         DATA.feedback=rows;for(const u of DATA.users)u.feedback_count=rows.filter(f=>f.user_id===u.id).length;
-        renderFeedback(rows);renderUsers(DATA);$('drawer').replaceChildren();
-      });
-    }
-
-    function renderUsers(d) {
-      const tbody = $('users').querySelector('tbody');
-      tbody.innerHTML = d.users.map((u, i) => `
-        <tr class="${u.feedback_count ? 'clickable' : ''}" data-uidx="${i}">
-          <td><b>${esc(u.name) || '—'}</b><br><span class="dimmer">${esc(u.email)}</span></td>
-          <td><span class="pill ${esc(u.role)}">${esc(u.role)}</span></td>
-          <td class="hide-sm dim">${u.systems.length ? esc(u.systems.join(', ')) : '—'}</td>
-          <td class="right">${u.logins_7d}</td>
-          <td class="right hide-sm">${u.logins_30d}</td>
-          <td class="right">${u.feedback_count || '—'}</td>
-          <td class="hide-sm dim">${fmt(u.last_sign_in_at)}</td>
-          <td class="hide-sm dim">${fmtD(u.created_at)}</td>
-        </tr>`).join('');
-      tbody.querySelectorAll('[data-uidx]').forEach(tr => {
-        const u = d.users[+tr.dataset.uidx];
-        if (u.feedback_count) tr.onclick = () => showUserFeedback(u);
+        renderFeedback(rows);people?.update(DATA);$('drawer').replaceChildren();
       });
     }
 
