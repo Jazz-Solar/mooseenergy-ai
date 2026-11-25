@@ -16,19 +16,21 @@ function chart(days,key,label) {
     <label class="sr-only" for="growth-${key}">Explore ${label.toLowerCase()} by date</label><input id="growth-${key}" type="range" min="0" max="${days.length-1}" value="${days.length-1}" data-growth-range><output for="growth-${key}" data-growth-reading>${e(dayLabel(last.date))} · ${count(last[key])} ${label.toLowerCase()}</output></article>`;
 }
 export function mountOverview(root,data) {
-  let period=30,days=[];
+  let period=30,days=[],siteDays=[];
   function render(){
     days=data.growth?.days?.slice(-period)||[];
+    siteDays=(data.growth?.connectedPhysicalDays?.slice(-period)||[]).map(d=>({date:d.date,sites:d.systems}));
+    const siteByDate=new Map(siteDays.map(d=>[d.date,d.sites]));
     root.innerHTML=`<div class="overview-intro"><p>Your workspace at a glance</p><span>Updated ${e(new Date(data.generated_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))}</span></div>
-      <div class="overview-totals"><article><span>Total users</span><strong>${count(data.totals.users)}</strong><small>Registered accounts</small></article><article><span>Total systems</span><strong>${data.growth?count(data.totals.systems):'—'}</strong><small>${data.growth?`${count(data.totals.connectedSystems)} connected to users`:'System totals await the updated statistics service'}</small></article></div>
+      <div class="overview-totals"><article><span>Total users</span><strong>${count(data.totals.users)}</strong><small>Registered accounts</small></article><article><span>Unique sites</span><strong>${count(data.totals.connectedPhysicalSites)}</strong><small>${Number.isFinite(data.totals.connectedPhysicalSites)?'Physical sites connected to accounts':'Site totals await the updated statistics service'}</small></article></div>
       <div class="growth-toolbar"><h2>Growth</h2><div class="period-switch" role="group" aria-label="Growth period">${[30,90].map(n=>`<button type="button" data-period="${n}" aria-pressed="${period===n}">${n} days</button>`).join('')}</div></div>
-      <div class="growth-charts">${chart(days,'users','Users')}${chart(days,'systems','Systems')}</div>
-      <p class="growth-note">Current records by registration date · UTC. Deleted records are excluded.</p>
+      <div class="growth-charts">${chart(days,'users','Users')}${chart(siteDays,'sites','Sites')}</div>
+      <p class="growth-note">Current accounts and connected physical sites by registration date · UTC. Each site is counted once.</p>
       <div class="overview-shortcuts"><a href="#sites/health"><span>Site health</span><strong>Review faults <span aria-hidden="true">↗</span></strong></a><a href="#people/reviews"><span>Access requests</span><strong>Review connections <span aria-hidden="true">↗</span></strong></a></div>
-      ${days.length?`<details class="growth-data"><summary>View chart data</summary><div class="access-table-scroll"><table class="access-table"><thead><tr><th>Date (UTC)</th><th>Users</th><th>Systems</th></tr></thead><tbody>${days.map(d=>`<tr><th scope="row">${e(d.date)}</th><td>${count(d.users)}</td><td>${count(d.systems)}</td></tr>`).join('')}</tbody></table></div></details>`:''}`;
+      ${days.length?`<details class="growth-data"><summary>View chart data</summary><div class="access-table-scroll"><table class="access-table"><thead><tr><th>Date (UTC)</th><th>Users</th><th>Unique sites</th></tr></thead><tbody>${days.map(d=>`<tr><th scope="row">${e(d.date)}</th><td>${count(d.users)}</td><td>${count(siteByDate.get(d.date))}</td></tr>`).join('')}</tbody></table></div></details>`:''}`;
   }
   const click=event=>{const b=event.target.closest('[data-period]');if(b){period=Number(b.dataset.period);render();root.querySelector(`[data-period="${period}"]`).focus();}};
-  const input=event=>{if(!event.target.matches('[data-growth-range]'))return;const card=event.target.closest('[data-growth]'),key=card.dataset.growth,index=Number(event.target.value),day=days[index],point=chartGeometry(days,key).points[index];card.querySelector('[data-growth-dot]').setAttribute('cx',point[0]);card.querySelector('[data-growth-dot]').setAttribute('cy',point[1]);card.querySelector('output').textContent=`${dayLabel(day.date)} · ${count(day[key])} ${key}`;};
+  const input=event=>{if(!event.target.matches('[data-growth-range]'))return;const card=event.target.closest('[data-growth]'),key=card.dataset.growth,index=Number(event.target.value),series=key==='sites'?siteDays:days,day=series[index],point=chartGeometry(series,key).points[index];card.querySelector('[data-growth-dot]').setAttribute('cx',point[0]);card.querySelector('[data-growth-dot]').setAttribute('cy',point[1]);card.querySelector('output').textContent=`${dayLabel(day.date)} · ${count(day[key])} ${key}`;};
   root.addEventListener('click',click);root.addEventListener('input',input);render();
   return {destroy(){root.removeEventListener('click',click);root.removeEventListener('input',input);root.replaceChildren();}};
 }
