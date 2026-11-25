@@ -22,7 +22,7 @@ el('signup').href='/app/';
 const labels={reconnect_required:'Reconnect your portal',awaiting_portal:'Waiting for portal access',authorizing:'Portal connection started',pending_verification:'Waiting for access verification',needs_selection:'Choose the intended site',ready:'Preparing sites',connected:'Connected',denied:'Portal connection needs another attempt',cancelled:'Cancelled',awaiting_inventory:'Waiting for site details'};
 function node(tag,text,parent,cls){const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;parent?.append(n);return n;}
 function button(text,parent,fn,secondary=true){const b=node('button',text,parent,secondary?'secondary':'');b.type='button';b.addEventListener('click',()=>run(fn));return b;}
-function disable(value){document.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=value);}
+function disable(value){document.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=value||n.dataset.readonly==='true');}
 async function run(fn){if(busy)return;const gen=generation;busy=true;disable(true);el('error').textContent='';try{await fn();}catch(error){if(gen===generation)el('error').textContent=error.safeMessage||'This step could not be completed. Refresh and try again.';}finally{if(gen===generation){busy=false;disable(false);}}}
 async function call(body){if(technicianLink)return linkCall(body);const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body,timeout:60000});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
 function enphaseOptions(r,root,ownerButton){
@@ -46,8 +46,9 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)for(const i
 async function show(id){const data=await call({action:'status',requestId:id});current=data;render(data);for(const item of el('requests').querySelectorAll('button'))if(item.dataset.requestId===data.id)item.textContent=`${data.siteName||data.vendor} · ${labels[data.status]||'Needs review'}`;}
 async function load(){const gen=generation;const {data}=await client.from('profiles').select('role').eq('id',session.user.id).single();if(gen!==generation)return;isAdmin=data?.role==='admin';const requests=await call({action:'list'});el('requests').replaceChildren();for(const r of requests){const item=button(`${r.siteName||r.vendor} · ${labels[r.status]||'Needs review'}`,el('requests'),()=>show(r.id));item.dataset.requestId=r.id;}if(requestId)await show(requestId);else if(requests.length===1)await show(requests[0].id);else if(!requests.length)el('notice').textContent='No requests are assigned to this account. Ask the owner to select your confirmed email in Moose.';}
 function render(r){const root=el('request');root.replaceChildren();node('h2',r.siteName||'Portal sites',root);node('p',`${r.vendor} · ${r.status==='needs_selection'&&r.accessMode==='own_portal'?'Choose your sites':labels[r.status]||'Connection needs review'}`,root);if(r.address)node('p',r.address,root);if(r.sandbox)node('p','Sandbox · synthetic readings for testing only.',root,'badge');
- if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to ${r.accessMode==='own_portal'?'your':"the requesting owner's"} Moose account.`,root);node('p',technicianLink?'The owner can now see the site in Moose. Review its installation details below, then close this page.':r.accessMode==='own_portal'?'You can return to the app to view your sites.':'You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open MOOSE',root);link.hidden=!!technicianLink;link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
-  const setup=node('div',null,root);for(const id of r.connectedIds)button(r.connectedIds.length===1?'Review site details':`Review ${id}`,setup,()=>showSetup(id,setup));return;}
+ if(r.status==='connected'&&r.purpose==='review'){node('p','This link only permits review of this installation’s physical inputs. It expires after seven days and can be disabled by the owner.',root);const setup=node('div',null,root);button('Complete Digital Twin setup',setup,()=>showSetup(r.connectedIds[0],setup));return;}
+ if(r.status==='connected'){node('p',`${r.connectedIds.length} site${r.connectedIds.length===1?'':'s'} connected to ${r.accessMode==='own_portal'?'your':"the requesting owner's"} Moose account.`,root);node('p',technicianLink?'The owner can now see the site in Moose. Review its installation details below, then close this page.':r.accessMode==='own_portal'?'You can return to the app to view your sites.':'You can return to the app. This request does not give the technician ongoing access to the owner’s account.',root);const link=node('a','Open Moose Energy',root);link.hidden=!!technicianLink;link.href=`${env.name==='development'?'moose-dev':'moose'}://connect?requestId=${encodeURIComponent(r.id)}`;
+  const setup=node('div',null,root);for(const id of r.connectedIds)button(r.connectedIds.length===1?'Complete Digital Twin setup':`Complete setup · ${id}`,setup,()=>showSetup(id,setup));return;}
  if(r.status==='cancelled'){node('p','The owner cancelled this request.',root);return;}
  if(r.canConnect&&['awaiting_portal','authorizing','denied','reconnect_required'].includes(r.status)){
    if(r.provider!=='enphase')node('p','Sign in to the manufacturer portal and approve access. You will return here to finish connecting the site.',root);
@@ -122,52 +123,86 @@ async function setupRpc(name,args){
  return data;
 }
 async function showSetup(id,parent){
- const [settings,setup]=await Promise.all([setupRpc('read_site_model_settings',{p_system_id:id}),setupRpc('read_site_setup',{p_system:id})]);
- if(settings?.systemId!==id||setup?.systemId!==id)throw Error('Invalid site');
+ const data=await setupRpc('read_site_twin_setup',{p_system:id});
+ if(data?.systemId!==id)throw Error('Invalid site');
  parent.querySelector('.setup-form')?.remove();
- const form=node('section',null,parent,'setup-form');node('h3','Site details',form);
- node('p','Enter only values confirmed by the installation records or electricity contract. Empty fields keep the existing defaults. Changes are shared with the site owners.',form);
- const fields=new Map();
- function input(label,key,value,placeholder='',type='text'){
-  const wrap=node('label',label,form),field=node('input',null,wrap);field.type=type;field.value=value??'';field.placeholder=placeholder;field.maxLength=500;fields.set(key,field);return field;
+ const form=node('section',null,parent,'setup-form'),settings=data.settings,progress=data.progress;
+ const values={...(progress?.values||settings.effectiveValues),...data.draft},missing=new Set(progress?.missingFields||['location','timezone','max_dc_power_kw','max_ac_power_kw','orientation']);
+ node('h3','Complete Digital Twin setup',form);if(data.draftRevision)node('p','Known inputs are saved as a draft. Confirm the timezone, then save to apply them to the Digital Twin.',form);
+ node('p',({preparing:'Preparing site data in the background',needs_review:'Confirm the remaining installation inputs',ready:'Digital Twin ready',retry_needed:'Provider data needs another attempt'})[progress?.status]||'Review installation inputs',form,'badge');
+ node('p','Save the inputs you know. Changes are shared with the site owners. Tariffs remain in the app’s site settings.',form);
+ const extra=node('details',null,form);node('summary','Review all other physical inputs',extra);
+ const fields=new Map(),dirty=new Set();
+ const section=key=>missing.has(key)?form:extra;
+ function input(label,key,group,type='number'){
+  const wrap=node('label',label,section(group)),field=node('input',null,wrap);
+  field.type=type;field.value=values[key]??'';field.step='any';field.maxLength=100;fields.set(key,field);
+  field.addEventListener('input',()=>dirty.add(key));return field;
  }
- for(const [key,label] of [['max_dc_power_kw','Total panel capacity (kW DC)'],['max_ac_power_kw','Total inverter capacity (kW AC)'],['tilt_degrees','Panel tilt (degrees)'],['azimuth_degrees','Facing direction (0 north, 90 east, 180 south, 270 west)']]){
-  const field=input(label,key,settings.overrides?.[key],String(settings.effectiveValues?.[key]??'Unknown'),'number');field.step='any';
+ const lat=input('Latitude','exact_latitude','location'),lon=input('Longitude','exact_longitude','location');
+ const setLocation=(a,b)=>{lat.value=a.toFixed(6);lon.value=b.toFixed(6);dirty.add('exact_latitude');dirty.add('exact_longitude');};
+ const latitude=Number(lat.value),longitude=Number(lon.value);
+ if(lat.value&&lon.value&&Number.isFinite(latitude)&&Math.abs(latitude)<=85&&Number.isFinite(longitude)&&Math.abs(longitude)<=180){
+  const mapRoot=node('div',null,section('location'),'location-picker');
+  node('p',progress?.locationPrecision==='ROOFTOP'?'Check the pin is on the installed array.':'This is an approximate area. Move the pin onto the installed array before confirming.',mapRoot);
+  const world=40075016.68557849;let x=longitude/360*world,y=Math.log(Math.tan(Math.PI/4+latitude*Math.PI/360))/(2*Math.PI)*world,span=progress?.locationPrecision==='ROOFTOP'?600:6000;
+  const viewport=node('div',null,mapRoot,'location-map'),image=node('img',null,viewport),pin=node('span','●',viewport,'location-pin');image.alt='Satellite map for confirming installation location';image.draggable=false;pin.setAttribute('aria-hidden','true');
+  const draw=()=>{x=((x+world/2)%world+world)%world-world/2;y=Math.max(-world/2,Math.min(world/2,y));image.src='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?f=image&format=jpg&bboxSR=3857&imageSR=3857&size=800,500&bbox='+[x-span/2,y-span*5/16,x+span/2,y+span*5/16].join(',');};
+  image.addEventListener('click',event=>{const r=image.getBoundingClientRect();x+=(event.clientX-r.left-r.width/2)/r.width*span;y-=(event.clientY-r.top-r.height/2)/r.width*span;draw();});
+  image.addEventListener('error',()=>{mapRoot.dataset.unavailable='true';});image.addEventListener('load',()=>{delete mapRoot.dataset.unavailable;});
+  const controls=node('div',null,mapRoot,'map-controls');
+  for(const [label,dx,dy] of [['West',-.25,0],['North',0,.25],['South',0,-.25],['East',.25,0]])button(label,controls,async()=>{x+=dx*span;y+=dy*span;draw();});
+  button('Zoom in',controls,async()=>{span=Math.max(80,span/2);draw();});button('Zoom out',controls,async()=>{span=Math.min(2000000,span*2);draw();});
+  button('Confirm this installation pin',mapRoot,async()=>setLocation((2*Math.atan(Math.exp(y/world*2*Math.PI))-Math.PI/2)*180/Math.PI,x/world*360));
+  node('small','Esri, Vantor, Earthstar Geographics, Garmin, GIS User Community',mapRoot);draw();
+ }else node('p','Enter verified installation coordinates. A city or postcode cannot identify the installed array.',section('location'));
+ input('Timezone (for example America/Toronto)','timezone','timezone','text');
+ input('Installed panel capacity (kW DC)','max_dc_power_kw','max_dc_power_kw');
+ input('Verified total inverter capacity (kW AC)','max_ac_power_kw','max_ac_power_kw');
+ node('p','AC capacity is the total continuous nameplate rating of all installed physical inverters, including offline units. Do not include retired devices or count dual-input channels twice.',section('max_ac_power_kw'));
+ const tilt=input('Panel tilt (0–90°)','tilt_degrees','orientation'),azimuth=input('Direction (0 north, 90 east, 180 south, 270 west)','azimuth_degrees','orientation');
+ node('p','Check installed panel angles. Roof estimates do not identify panel racks. Mixed faces and ground mounts need a technician-confirmed representative plane for this model.',section('orientation'));
+ if(progress?.geometrySuggestion?.status==='estimated'){
+  const g=progress.geometrySuggestion;node('p',`Roof suggestion: ${g.pitchDegrees}° tilt, ${g.azimuthDegrees}° direction. Confirm only after checking the installed array.`,section('orientation'));
+  button('I confirm these installed panel angles',section('orientation'),async()=>{tilt.value=g.pitchDegrees;azimuth.value=g.azimuthDegrees;dirty.add('tilt_degrees');dirty.add('azimuth_degrees');});
  }
- const timezoneLabel=node('label','Timezone (IANA, when missing)',form),timezone=node('input',null,timezoneLabel);timezone.value=settings.overrides?.timezone||'';timezone.placeholder=settings.effectiveValues?.timezone||'e.g. America/Toronto';
- const connectionLabel=node('label','Electricity connection',form),connection=node('select',null,connectionLabel);
- for(const [value,label] of [['','Use existing setting'],['FIT','Feed-in tariff'],['NET_METERED','Net metering'],['LOAD_DISPLACEMENT','Load displacement']]){const option=node('option',label,connection);option.value=value;}
- connection.value=settings.overrides?.connection_type||'';
- const tariff=node('details',null,form);node('summary','Electricity rate (optional)',tariff);node('p','Enter the verified currency, rate per kWh and contract dates. Metered savings still require consumption/import/export evidence.',tariff);
- const tariffFields={};for(const [key,label,type] of [['currency','Currency, e.g. CAD','text'],['rate','Rate per kWh','number'],['startDate','Valid from','date'],['endDate','Valid through','date']]){
-  const labelNode=node('label',label,tariff),field=node('input',null,labelNode);field.type=type;if(type==='number')field.step='any';tariffFields[key]=field;
- }
- button('Save installation settings',form,async()=>{
-  const values={...settings.overrides};for(const [key,field] of fields){if(field.value.trim())values[key]=Number(field.value);else delete values[key];}
-  if(timezone.value.trim())values.timezone=timezone.value.trim();
-  if(connection.value)values.connection_type=connection.value;else delete values.connection_type;
-  if(values.tilt_degrees>0)values.model_mode='tilted';
-  if(Object.values(tariffFields).some(field=>field.value)){
-   if(Object.values(tariffFields).some(field=>!field.value)){const e=Error('Tariff incomplete');e.safeMessage='Enter all four tariff fields, or leave all four empty to keep the saved tariff.';throw e;}
-   // Existing multiple contract periods must be maintained in the full app form.
-   if((settings.overrides?.tariff_periods?.length||0)>1){const e=Error('Multiple tariffs');e.safeMessage='This site has several tariff periods. Edit them in the app to preserve the full contract history.';throw e;}
-   values.tariff_periods=[{currency:tariffFields.currency.value.trim().toUpperCase(),rate:Number(tariffFields.rate.value),startDate:tariffFields.startDate.value,endDate:tariffFields.endDate.value}];
-  }
-  await setupRpc('save_site_model_settings',{p_system_id:id,p_values:values,p_expected_revision:settings.revisionId});
-  await showSetup(id,parent);el('notice').textContent='Installation settings saved.';
+ button('Confirm panels are flat (0°)',section('orientation'),async()=>{tilt.value='0';azimuth.value='180';dirty.add('tilt_degrees');dirty.add('azimuth_degrees');});
+ node('small',`Model defaults: loss factor ${values.system_losses??.18}, fallback losses ${values.fallback_losses??.14}, inverter efficiency ${values.inverter_efficiency??.97}, temperature coefficient ${values.temperature_coefficient??-.004}.`,form);
+ button('Save known inputs',form,async()=>{
+  const patch={};for(const key of dirty){const value=fields.get(key).value.trim();if(!value)continue;patch[key]=key==='timezone'?value:Number(value);}
+  if('exact_latitude'in patch||'exact_longitude'in patch){if(!lat.value.trim()||!lon.value.trim())throw Error('Both coordinates required');patch.exact_latitude=Number(lat.value);patch.exact_longitude=Number(lon.value);}
+  if('tilt_degrees'in patch)patch.model_mode=patch.tilt_degrees===0?'flat_panel':'tilted';
+  if(!Object.keys(patch).length&&!data.draftRevision){const e=Error('No confirmed inputs');e.safeMessage='Confirm a map pin or enter an installation input to save.';throw e;}
+  if(Object.entries(patch).some(([key,v])=>!['timezone','model_mode'].includes(key)&&!Number.isFinite(v)))throw Error('Invalid number');
+  await setupRpc('save_site_twin_setup',{p_system:id,p_values:patch,p_expected_revision:settings.revisionId,p_expected_draft_revision:data.draftRevision??null});
+  await showSetup(id,parent);el('notice').textContent='Known inputs saved. Remaining items can be completed later.';
  },false);
- const addressLabel=node('label','Site address',form),address=node('input',null,addressLabel);address.value=setup.address;address.maxLength=500;
- let devices=null;
- if(id.startsWith('e:')){
-  const extra=node('details',null,form);node('summary','Panel capacity by inverter (optional)',extra);
-  node('p','One inverter serial number, comma, total connected panel watts per line. Use verified nameplate values; do not divide the total capacity across an unknown or mixed array.',extra);
-  const label=node('label','Verified inverter serial numbers and panel watts',extra);devices=node('textarea',null,label);devices.maxLength=100000;devices.rows=6;devices.value=setup.equipment.map(d=>`${d.deviceId}, ${d.dcPowerW}`).join('\n');
+ // Preserve verified per-device DC editing for the original connection journey.
+ // A review-only link remains limited to the physical site model inputs.
+ if(current?.purpose!=='review'&&(id.startsWith('e:')||current?.accessMode==='technician_managed')){
+  const advanced=node('details',null,form);node('summary','Installation records (optional)',advanced);
+  button('Load installation records',advanced,async()=>{
+   const setup=await setupRpc('read_site_setup',{p_system:id});if(setup?.systemId!==id)throw Error('Invalid site');
+   advanced.replaceChildren();node('summary','Installation records (optional)',advanced);
+   let address=null,devices=null;
+   if(current?.accessMode==='technician_managed'){
+    const label=node('label','Site address',advanced);address=node('input',null,label);address.value=setup.address;address.maxLength=500;
+   }
+   if(id.startsWith('e:')){
+    node('p','One inverter serial number, comma, verified connected panel watts per line. Do not divide site capacity across an unknown or mixed array.',advanced);
+    const label=node('label','Verified inverter serial numbers and panel watts',advanced);devices=node('textarea',null,label);devices.rows=6;devices.maxLength=100000;devices.value=setup.equipment.map(d=>`${d.deviceId}, ${d.dcPowerW}`).join('\n');
+   }
+   button(address?'Save address and panel details':'Save panel details',advanced,async()=>{
+    const seen=new Set(),equipment=devices?devices.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{
+     const fields=line.split(',').map(s=>s.trim()),watts=Number(fields[1]);if(fields.length!==2||!/^[A-Za-z0-9_-]{1,128}$/.test(fields[0])||seen.has(fields[0])||!Number.isFinite(watts)||watts<1||watts>1e9)throw Error('Invalid device inputs');seen.add(fields[0]);return {deviceId:fields[0],dcPowerW:watts};
+    }):setup.equipment;
+    await setupRpc('save_site_setup',{p_system:id,p_address:address?address.value.trim():setup.address,p_devices:equipment,p_expected_revision:setup.revisionId});
+    await showSetup(id,parent);el('notice').textContent='Site details saved. Available roof and equipment data will refresh automatically.';
+   });
+  });
  }
- button('Save address and panel details',form,async()=>{
-  const seen=new Set(),equipment=devices?devices.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{
-   const fields=line.split(',').map(s=>s.trim()),watts=Number(fields[1]);if(fields.length!==2||!/^[A-Za-z0-9_-]{1,128}$/.test(fields[0])||seen.has(fields[0])||!Number.isFinite(watts)||watts<1||watts>1e9)throw Error('Invalid device inputs');seen.add(fields[0]);return {deviceId:fields[0],dcPowerW:watts};
-  }):setup.equipment;
-  await setupRpc('save_site_setup',{p_system:id,p_address:address.value.trim(),p_devices:equipment,p_expected_revision:setup.revisionId});
-  await showSetup(id,parent);el('notice').textContent='Site details saved. Available roof and equipment data will refresh automatically.';
- });
+ if(settings.canEdit===false){for(const field of form.querySelectorAll('input,button,textarea')){field.dataset.readonly='true';field.disabled=true;}}
+ if(progress?.status==='preparing'){
+  const poll=()=>setTimeout(()=>{if(!form.isConnected)return;if(document.hidden||busy||dirty.size){poll();return;}void run(()=>showSetup(id,parent));},8000);poll();
+ }
 }
