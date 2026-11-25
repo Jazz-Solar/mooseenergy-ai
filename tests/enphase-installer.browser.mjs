@@ -6,7 +6,7 @@ import {chromium} from 'playwright';
 const root=resolve('.'),artifacts=resolve('../evidence/web-installer');await mkdir(artifacts,{recursive:true});
 const server=createServer(async(req,res)=>{try{const pathname=new URL(req.url,'http://localhost').pathname;const p=resolve(root,'.'+(pathname.endsWith('/')?pathname+'index.html':pathname));if(!p.startsWith(root+'/'))throw Error();res.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.css':'text/css'}[extname(p)]||'application/octet-stream'});res.end(await readFile(p));}catch{res.writeHead(404);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin=`http://127.0.0.1:${server.address().port}`;
-const browser=await chromium.launch({headless:true,executablePath:'/home/kali/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome'});
+const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE||chromium.executablePath()});
 const stub=`export function createClient(){let callback=()=>{};let session={user:{id:'fixture-actor'},access_token:'fixture'};return {auth:{getSession:async()=>({data:{session}}),onAuthStateChange:fn=>{callback=fn},signOut:async()=>{session=null;callback('SIGNED_OUT',null);return {}}},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{role:'owner'}})})})}),functions:{invoke:async(name,{body})=>{const r=await fetch('/fixture-edge',{method:'POST',body:JSON.stringify(body)});const data=await r.json();return r.ok?{data,error:null}:{data:null,error:{context:{json:async()=>data}}}}}}}`;
 let cases=0;
 try{
