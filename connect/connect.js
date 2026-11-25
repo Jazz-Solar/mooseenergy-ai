@@ -10,8 +10,10 @@ let technicianLink=incomingLink||sessionStorage.getItem(linkStorageKey);
 const client=technicianLink?null:createClient(env.url,env.key,{auth:{storageKey:`moose-connect-${env.name}-v1`,storage:sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 if(incomingLink){sessionStorage.setItem(linkStorageKey,incomingLink);history.replaceState(null,'',location.pathname+location.search);}
 async function linkCall(body){
- const response=await fetch(`${env.url}/functions/v1/site-connect`,{method:'POST',referrerPolicy:'no-referrer',headers:{'content-type':'application/json',apikey:env.key},body:JSON.stringify({...body,technicianLink})});
+ const gen=generation,link=technicianLink;
+ const response=await fetch(`${env.url}/functions/v1/site-connect`,{method:'POST',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(60000),headers:{'content-type':'application/json',apikey:env.key},body:JSON.stringify({...body,technicianLink:link})});
  const data=await response.json();
+ if(gen!==generation||link!==technicianLink)throw Error('Setup changed');
  if(!response.ok){if([403,404].includes(response.status))el('request').replaceChildren();const error=Error('Setup unavailable');error.safeMessage=data?.error?.message||'This setup link is unavailable. Ask the owner to send a new invitation.';throw error;}return data;
 }
 
@@ -22,7 +24,25 @@ function node(tag,text,parent,cls){const n=document.createElement(tag);if(text)n
 function button(text,parent,fn,secondary=true){const b=node('button',text,parent,secondary?'secondary':'');b.type='button';b.addEventListener('click',()=>run(fn));return b;}
 function disable(value){document.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=value);}
 async function run(fn){if(busy)return;const gen=generation;busy=true;disable(true);el('error').textContent='';try{await fn();}catch(error){if(gen===generation)el('error').textContent=error.safeMessage||'This step could not be completed. Refresh and try again.';}finally{if(gen===generation){busy=false;disable(false);}}}
-async function call(body){if(technicianLink)return linkCall(body);const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
+async function call(body){if(technicianLink)return linkCall(body);const gen=generation;if(!session)throw Error('Sign in');const {data,error}=await client.functions.invoke('site-connect',{body,timeout:60000});if(gen!==generation)throw Error('Account changed');if(error){let payload;try{payload=await error.context?.json();}catch{}const e=Error('Connection failed');e.safeMessage=payload?.error?.message||'Could not load this request. Use the email assigned to it, or ask the owner to check their technician selection.';throw e;}return data;}
+function enphaseOptions(r,root,ownerButton){
+ node('h3','How do you access Enphase?',root);
+ const choices=node('div',null,root,'enphase-options');
+ const owner=node('div',null,root),installer=node('form',null,root);installer.hidden=true;installer.autocomplete='off';
+ const ownerChoice=button('System owner',choices,async()=>{installer.hidden=true;owner.hidden=false;password.value='';ownerChoice.setAttribute('aria-pressed','true');installerChoice.setAttribute('aria-pressed','false');});
+ const installerChoice=button('Installer or technician',choices,async()=>{installer.hidden=false;owner.hidden=true;password.value='';ownerChoice.setAttribute('aria-pressed','false');installerChoice.setAttribute('aria-pressed','true');email.focus();});
+ ownerChoice.setAttribute('aria-pressed','true');installerChoice.setAttribute('aria-pressed','false');
+ node('p','Approve access on Enphase’s website. If Enphase says you do not own any systems, choose Installer or technician.',owner);owner.append(ownerButton);ownerButton.textContent='Continue as system owner';
+ node('p','Sign in with your Enlighten installer account to find the sites you manage. Moose uses your password to connect and does not save it.',installer);
+ const emailLabel=node('label','Enlighten email',installer),email=node('input',null,emailLabel);email.type='email';email.maxLength=254;email.required=true;email.autocomplete='off';email.name='enphase-email';
+ const passwordLabel=node('label','Enlighten password',installer),password=node('input',null,passwordLabel);password.type='password';password.maxLength=1024;password.required=true;password.autocomplete='off';password.name='enphase-password';password.dataset.enphasePassword='true';
+ const submit=node('button','Sign in and find sites',installer);submit.type='submit';
+ installer.addEventListener('submit',event=>{event.preventDefault();void run(async()=>{
+  const payload={action:'installerSignIn',requestId:r.id,installerEmail:email.value.trim(),installerPassword:password.value};password.value='';submit.textContent='Connecting to Enphase…';
+  try{const result=await call(payload);current=result;render(result);}finally{payload.installerPassword='';submit.textContent='Sign in and find sites';}
+ });});
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)for(const input of document.querySelectorAll('[data-enphase-password]'))input.value='';});
 async function show(id){const data=await call({action:'status',requestId:id});current=data;render(data);for(const item of el('requests').querySelectorAll('button'))if(item.dataset.requestId===data.id)item.textContent=`${data.siteName||data.vendor} · ${labels[data.status]||'Needs review'}`;}
 async function load(){const gen=generation;const {data}=await client.from('profiles').select('role').eq('id',session.user.id).single();if(gen!==generation)return;isAdmin=data?.role==='admin';const requests=await call({action:'list'});el('requests').replaceChildren();for(const r of requests){const item=button(`${r.siteName||r.vendor} · ${labels[r.status]||'Needs review'}`,el('requests'),()=>show(r.id));item.dataset.requestId=r.id;}if(requestId)await show(requestId);else if(requests.length===1)await show(requests[0].id);else if(!requests.length)el('notice').textContent='No requests are assigned to this account. Ask the owner to select your confirmed email in Moose.';}
 function render(r){const root=el('request');root.replaceChildren();node('h2',r.siteName||'Portal sites',root);node('p',`${r.vendor} · ${r.status==='needs_selection'&&r.accessMode==='own_portal'?'Choose your sites':labels[r.status]||'Connection needs review'}`,root);if(r.address)node('p',r.address,root);if(r.sandbox)node('p','Sandbox · synthetic readings for testing only.',root,'badge');
@@ -30,8 +50,9 @@ function render(r){const root=el('request');root.replaceChildren();node('h2',r.s
   const setup=node('div',null,root);for(const id of r.connectedIds)button(r.connectedIds.length===1?'Review site details':`Review ${id}`,setup,()=>showSetup(id,setup));return;}
  if(r.status==='cancelled'){node('p','The owner cancelled this request.',root);return;}
  if(r.canConnect&&['awaiting_portal','authorizing','denied','reconnect_required'].includes(r.status)){
-   node('p','Sign in to the manufacturer portal and approve access. You will return here to finish connecting the site.',root);
-   button(r.status==='reconnect_required'?'Reconnect portal':r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':r.provider==='enphase'?url.origin==='https://api.enphaseenergy.com'&&url.pathname==='/oauth/authorize'&&url.searchParams.get('response_type')==='code':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
+   if(r.provider!=='enphase')node('p','Sign in to the manufacturer portal and approve access. You will return here to finish connecting the site.',root);
+   const ownerButton=button(r.status==='reconnect_required'?'Reconnect portal':r.status==='authorizing'?'Restart portal connection':'Connect manufacturer portal',root,async()=>{const result=await call({action:'start',requestId:r.id,vendor:r.vendor});const url=new URL(result.authorizeUrl);if(url.username||url.password||!(r.provider==='fronius'?url.origin==='https://login.fronius.com'&&url.pathname==='/oauth2/authorize':r.provider==='enphase'?url.origin==='https://api.enphaseenergy.com'&&url.pathname==='/oauth/authorize'&&url.searchParams.get('response_type')==='code':url.origin==='https://api.derapi.com'&&/^\/join\/flows\/flow-[A-Za-z0-9_-]+\/authorize$/.test(url.pathname)))throw Error('Invalid authorization URL');location.assign(url.href);},false);
+   if(r.provider==='enphase')enphaseOptions(r,root,ownerButton);
  }
  if(r.status==='pending_verification'){
   if(r.canConnect&&r.verificationMethod==='enphase'){
