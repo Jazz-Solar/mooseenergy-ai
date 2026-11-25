@@ -31,7 +31,7 @@ test('local relay preserves user authorization and environment while returning u
   });
   for (const [name, environment] of Object.entries(environments)) {
     const response = await app.post(`/__admin-api/${name}/staff-site-access`, {
-      headers: { apikey: 'client-cannot-change-project-key', cookie: 'not-forwarded=true' },
+      headers: { apikey: 'fixture-client-cannot-change-project-key', cookie: 'not-forwarded=true' },
     });
     assert.equal(response.status, 403);
     assert.equal(response.headers.get('cache-control'), 'no-store');
