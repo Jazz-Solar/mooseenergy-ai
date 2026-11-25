@@ -19,6 +19,7 @@ try{for(const width of [320,390,1280]){
  });
  await page.goto(`http://127.0.0.1:${server.address().port}/connect/?environment=development&request=${id}#setup=v1.review-fixture`);
  await page.getByRole('button',{name:'Complete Digital Twin setup',exact:true}).click();await page.getByLabel('Verified total inverter capacity (kW AC)',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('heading',{level:1}).textContent(),'Review site setup');assert.doesNotMatch(await page.locator('#intro').textContent(),/Connect the requested site/);
  assert.equal(await page.getByRole('button',{name:'Connect manufacturer portal'}).count(),0);assert.equal(await page.getByLabel('Site address',{exact:true}).count(),0);assert.equal(await page.getByText('Installation records (optional)',{exact:true}).count(),0);
  await page.getByRole('button',{name:'East',exact:true}).click();await page.getByRole('button',{name:'Confirm this installation pin',exact:true}).click();await page.getByLabel('Verified total inverter capacity (kW AC)',{exact:true}).fill('7.8');
  await page.getByRole('button',{name:'I confirm these installed panel angles',exact:true}).click();await page.getByRole('button',{name:'Save known inputs',exact:true}).click();await page.getByText('Known inputs saved. Remaining items can be completed later.',{exact:true}).waitFor();
