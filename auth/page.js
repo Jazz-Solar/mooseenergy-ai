@@ -5,8 +5,8 @@ const original = location.href;
 history.replaceState(null, '', location.pathname);
 const title = document.querySelector('h1'), message = document.querySelector('#message'), button = document.querySelector('button');
 function unavailable() {
-  title.textContent = 'Return to Moose';
-  message.textContent = 'This link is unavailable or has expired. If your email is already confirmed, sign in with your password. Otherwise, request a new confirmation link in Moose.';
+  title.textContent = 'Return to Moose Energy';
+  message.textContent = 'This link is unavailable or has expired. If your email is already confirmed, sign in with your password. Otherwise, request a new confirmation link in Moose Energy.';
   button.hidden = true;
 }
 if (location.pathname === '/auth/confirm/') {
@@ -20,8 +20,8 @@ if (location.pathname === '/auth/confirm/') {
   try {
     const input = legacyCompletionInput(original);
     title.textContent = 'Your email is confirmed';
-    message.textContent = 'Return to Moose on your phone and sign in with the password you chose. If you opened this email on the phone where you signed up, you can open Moose below.';
-    button.textContent = 'Open Moose on this device';
+    message.textContent = 'Return to Moose Energy on your phone and sign in with the password you chose. If you opened this email on the phone where you signed up, you can open Moose Energy below.';
+    button.textContent = 'Open Moose Energy on this device';
     button.hidden = false;
     // A laptop may have no app handler. Keep the success state and password
     // fallback visible even when the optional app launch is unavailable.
@@ -47,10 +47,10 @@ if (location.pathname === '/auth/confirm/') {
         const result = await response.json();
         if (result.data?.status !== 'submitted') { unavailable(); return; }
         title.textContent = 'Your email is confirmed';
-        message.textContent = 'Return to Moose on your phone. If it’s open, setup will continue automatically. If you return later, sign in with your password.';
+        message.textContent = 'Return to Moose Energy on your phone. If it’s open, setup will continue automatically. If you return later, sign in with your password.';
       } catch {
         title.textContent = 'Your email is confirmed';
-        message.textContent = 'We couldn’t reach Moose on your phone. Try again, or open the app and sign in with your password.';
+        message.textContent = 'We couldn’t reach Moose Energy on your phone. Try again, or open the app and sign in with your password.';
         button.textContent = 'Try again'; button.hidden = false;
       } finally { clearTimeout(timeout); busy = false; }
     }
