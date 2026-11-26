@@ -1,4 +1,4 @@
-import { utilityEvidenceHtml, loadUtilityEvidence } from './utility-evidence.js';
+import { utilityEvidenceHtml, loadUtilityEvidence } from './utility-evidence.js?v=20261126-2';
 import { escapeHtml as e } from './site-access.js?v=20260914-fit-rates-1';
 
 const metric = (value, suffix = '', precision = 2) => typeof value === 'number' && Number.isFinite(value)
