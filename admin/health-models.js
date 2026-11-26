@@ -1,3 +1,4 @@
+import { utilityEvidenceHtml, loadUtilityEvidence } from './utility-evidence.js';
 import { escapeHtml as e } from './site-access.js?v=20260914-fit-rates-1';
 
 const metric = (value, suffix = '', precision = 2) => typeof value === 'number' && Number.isFinite(value)
@@ -69,6 +70,10 @@ export function mountHealthModels(root, call, options = {}) {
       $('[data-model-date]').disabled = false;
       $('[data-model-result]').innerHTML = comparisonHtml(data);
       $('[data-model-message]').textContent = '';
+      try {
+        const utility = await loadUtilityEvidence(call, systemId);
+        if (alive && ticket === generation) $('[data-model-result]').insertAdjacentHTML('beforeend', utilityEvidenceHtml(utility, data.date));
+      } catch { if (alive && ticket === generation) $('[data-model-result]').insertAdjacentHTML('beforeend', '<p>Utility evidence is unavailable. Refresh to retry.</p>'); }
     } catch (error) {
       if (alive && ticket === generation) $('[data-model-message]').textContent = `${error.message} Use Refresh comparison to retry.`;
     }

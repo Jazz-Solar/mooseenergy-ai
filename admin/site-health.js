@@ -1,7 +1,8 @@
+import { utilityEvidenceHtml, loadUtilityEvidence } from './utility-evidence.js';
 import { mountVendorErrorLog, healthCheckCodes } from './vendor-error-log.js?v=20261116-1';
 import { providerSiteLink, mountConnectedAccounts } from './site-context.js?v=20261009-site-context-1';
 import { escapeHtml as e } from "./site-access.js?v=20260914-fit-rates-1";
-import { mountHealthModels } from './health-models.js?v=20261105-1';
+import { mountHealthModels } from './health-models.js?v=20261126-utility-1';
 export const healthState = (status) =>
   ({
     yellow: "Needs review",
@@ -159,7 +160,7 @@ export function mountSiteHealth(root, call) {
       `<div class="review-evidence"><div class="review-evidence-heading"><h4>${r.causes.length} finding${r.causes.length===1?'':'s'}</h4><span class="review-status">${e(healthState(r.status))}</span></div>
       <div class="review-timing"><span>${active ? `Open for <strong data-health-duration="${e(r.firstObservedAt)}">${e(healthDuration(r.firstObservedAt))}</strong>` : `First recorded ${e(date(r.firstObservedAt))}`}</span><span>Latest evidence ${e(date(r.latestObservedAt))}</span></div>
       ${r.scope === 'account' ? `<div class="review-scope">Account-specific production warning. The model comparison below uses shared site settings.<details><summary>Account reference</summary>${e(r.accountId)}</details></div>` : ''}
-      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div>${r.providerCheck ? healthCheckCodes(r.providerCheck) : vendorEvidenceCards(r.providerEvidence)}<div data-review-model-slot></div>
+      <div class="fault-list">${r.causes.map(faultCard).join('') || '<p>No fault details were recorded.</p>'}</div></div>${r.providerCheck ? healthCheckCodes(r.providerCheck) : vendorEvidenceCards(r.providerEvidence)}<div data-utility-evidence></div><div data-review-model-slot></div>
       ${
         active
           ? `<form class="review-decision" data-health-review><h4>Record your decision</h4><label for="health-decision">Decision</label><select id="health-decision" name="decision">${pending ? '<option value="confirm">Confirm physical fault · red</option><option value="dismiss">Dismiss warning</option>' : ""}<option value="resolve">Record manual recovery</option></select>
@@ -171,6 +172,10 @@ export function mountSiteHealth(root, call) {
       <details><summary>Review history</summary><ol>${(r.events || []).map((v) => `<li><strong>${e(v.kind)}</strong> · ${e(v.actorKind)}${v.actorId ? ` (${e(v.actorId)})` : ""} · ${e(date(v.at))}${v.note ? `<p>${e(v.note)}</p>` : ""}</li>`).join("")}</ol></details>`;
 
     $('[data-review-model-slot]').append(reviewRoot);
+    const utilitySlot = $('[data-utility-evidence]');
+    void loadUtilityEvidence(call, r.systemId).then(data => {
+      if (alive && selected === r && utilitySlot.isConnected) utilitySlot.innerHTML = utilityEvidenceHtml(data);
+    }).catch(() => { if (alive && selected === r && utilitySlot.isConnected) utilitySlot.textContent = 'Utility evidence is unavailable. Reopen to retry.'; });
   }
   function close() {
     if (busy) return;
