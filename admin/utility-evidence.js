@@ -18,6 +18,5 @@ export function utilityEvidenceHtml(data, selectedDate) {
     <p>Evidence supports review. Existing health, alerts and dispatch decisions are unchanged.</p></section>`;
 }
 export async function loadUtilityEvidence(call, systemId) {
-  const { data } = await call('utility-connection', { action: 'evidence', systemId });
-  return data;
+  return call('utility-connection', { action: 'evidence', systemId });
 }
